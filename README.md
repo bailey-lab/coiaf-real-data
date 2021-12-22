@@ -5,7 +5,7 @@
 
 <!-- badges: start -->
 
-[![Requirement](https://img.shields.io/badge/requirement-coiaf-blue?logo=github)](https://github.com/bailey-lab/coiaf)
+[![Requirement](https://img.shields.io/badge/requirement-coiaf-blue)](https://github.com/bailey-lab/coiaf)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->

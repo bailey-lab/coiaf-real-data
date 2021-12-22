@@ -1,4 +1,4 @@
-# Real Data Script
+# Real Data Scripts
 
 The scripts in this folder have been designed to facilitate the process of
 running real data. In our data, we have defined 24 unique regions of samples.
