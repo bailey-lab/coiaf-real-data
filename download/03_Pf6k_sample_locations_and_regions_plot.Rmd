@@ -1,0 +1,106 @@
+---
+title: "Pf6k Sample Locations and Malaria Prevalence"
+author: "OJ Watson"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+    toc: true
+    fig_caption: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r imports, echo=F, warning=F, message=F, results='hide'}
+library(tidyverse)
+library(coiaf)
+library(cluster)
+devtools::install_github("OJWatson/roxer")
+devtools::install_github("malaria-atlas-project/malariaAtlas")
+```
+
+```{r download data}
+## Download the Pf6k Meta
+tf <- tempfile()
+download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",tf)
+meta <- data.table::fread(tf)
+
+map <- roxer::map_plot(unique(meta[,c("Lat", "Long")]),"Lat","Long")
+```
+
+Then we will need to cluster our samples into suitably close regions, for which
+we assume the same PLAF exists but without reducing our n.
+
+We can use a silhouette plot to visualize the optimum number of regions to guide 
+our decisions
+
+```{r clustering}
+# Do PAM clustering
+locations <- unique(meta[, c("Lat", "Long")])
+
+sis <- 2:(nrow(locations)-1)
+for(k in sis) {
+  si <- silhouette(cluster::pam(x = locations, k))
+  sis[k-1] <- mean(si[,3])
+}
+
+# Silhouette plot
+# N.B. element_line throws a warning when give it a list as an input. A
+# workaround for this for making the number a different color is to use
+# `ggtext::element_markdown`, but this does not work for making the tick mark
+# another color
+sil <- data.frame(cluster = seq_along(sis) + 1,
+                  sis = sis)
+ggplot(sil, aes(x = cluster, y = sis)) + 
+  geom_point() +
+  geom_vline(xintercept = which(diff(sign(diff(sis))) == -2) + 2, linetype = 5) +
+  geom_vline(xintercept = 24, linetype = 5, color = "red") +
+  annotation_custom(grob = grid::segmentsGrob(gp = grid::gpar(col = "red", lwd = 2)), 
+    xmin = 24, xmax = 24, ymin = -0.025, ymax = -0.02) +
+  scale_x_continuous(breaks = c(0, 20, 24, 40, 60)) +
+  labs(x = "Number of Clusters", y = "Average Silhoutte Score") +
+  theme_classic() +
+  theme(text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 8),
+        axis.text.x = ggtext::element_markdown(color = c("black", "black", "red", "black", "black")),
+        axis.ticks.x = element_line(color = c("black", "black", "red", "black", "black")))
+```
+
+For the RMCL analysis, 24 locations were chosen:
+
+```{r plot}
+ks <- cluster::pam(meta[,c("Lat","Long")], k = 24)
+meta$color <- as.factor(ks$clustering)
+
+map2 <- roxer::map_plot(unique(meta[,c("Lat", "Long", "color")]),"Lat","Long")
+```
+
+To assign the prevalence to these points:
+
+```{r prevalence}
+# Get the latitudes and longitudes
+coords <- data.frame(meta$Long, meta$Lat)
+names(coords) <- c("x","y")
+
+# Make column for 2-10 year old prevalence
+meta$prev_2_10 <- as.numeric(meta$Year)
+
+# Get rasters using malariaAtlas package
+PfPR2_10 <- malariaAtlas::getRaster(year = sort(unique(meta$prev_2_10)))
+
+# Loop through and add malaria prevalence
+for(i in seq_along(sort(unique(meta$Year)))){
+  year <- sort(unique(meta$Year))[i]
+  pos <- which(meta$Year == year)
+  if(year != "Lab") {
+    i_coords <- coords[pos,]
+    prev <- raster::extract(PfPR2_10[[i]], i_coords)
+    meta$prev_2_10[pos] <- prev
+  } else {
+    meta$prev_2_10[pos] <- "Lab"
+  }
+}
+
+meta$prev_2_10
+```
+

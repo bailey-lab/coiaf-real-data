@@ -1,0 +1,160 @@
+---
+title: "Creating WSAF matrix for coiaf"
+author: "OJ Watson"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+    toc: true
+    fig_caption: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r imports, echo=F, warning=F, message=F, results='hide'}
+library(tidyverse)
+library(RColorBrewer)
+library(devtools)
+library(here)
+library(rslurm)
+library(vcfR)
+devtools::install_github("OJWatson/McCOILR")
+```
+
+This script uses the filtered VCF from after step 4 in 00_Pf6k_vcf_download_loci_selection:
+
+1. Grab the COI estiamted for each sample
+2. Grab the WSAF used to generate these into a coiaf format
+3. Bundle these together for testing coiaf
+
+
+## Grab the COI estiamted for each sample
+
+```{r grabbing coi}
+
+l <- list.files(file.path(here::here(), "analysis/data/derived/McCOIL_work"), full.names = TRUE)
+sums <- grep("summary", l, value = TRUE)
+
+st <- lapply(sums, data.table::fread)
+names(st) <- basename(sums)
+
+coi <- data.table::rbindlist(lapply(st[!unlist(lapply(st,function(x){nrow(x)==0}))], function(x){
+  df <- data.frame("COI" = x[x$CorP=="C"]$mean,
+                   "COI_025" = x[x$CorP=="C"]$quantile0.025,
+                   "COI_975" = x[x$CorP=="C"]$quantile0.975,
+                   "region" = unique(stringr::str_extract(x$file,"\\d{1,2}")),
+                   "file" = x[x$CorP=="C"]$file,
+                   "name" = x$name[x$CorP == "C"])
+}))
+saveRDS(coi, file.path(here::here(),"analysis/data/derived/McCOIL_work/RMCL_coi_out.rds"))
+```
+
+## Grab the WSAF used to generate these into a coiaf format
+
+This is what was used to submit
+```{r wsaf creation for coiaf}
+
+tf <- tempfile()
+download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",tf)
+meta <- data.table::fread(tf)
+
+## assign to clusters
+df <- meta[meta$`Exclusion reason`=="Analysis_set",c("Lat", "Long", "Sample")]
+ks <- cluster::pam(df[,1:2], k = 24)
+df$cluster <- as.factor(ks$clustering)
+
+# create our source vcf paths
+vcfs <- grep("results_", 
+             list.files(file.path(here::here(), 
+                                  "analysis/data/slurm_outs/_rslurm_ld_filter"),
+                        full.names = TRUE), 
+             value = TRUE)
+
+# build our parameter object list
+obj_grid <- expand.grid(rep=1:5, vcfs = vcfs, regions = unique(df$cluster), stringsAsFactors = FALSE)
+obj_list <- vector("list", nrow(obj_grid))
+for(i in seq_along(obj_list)) {
+  obj_list[[i]]$rep <- obj_grid$rep[i]
+  obj_list[[i]]$vcf_rds <- obj_grid$vcfs[i]
+  obj_list[[i]]$region <- obj_grid$regions[i]
+  obj_list[[i]]$meta_df <- df
+  obj_list[[i]]$path <- file.path(here::here(), "analysis/data/derived/McCOIL_work")
+}
+
+```
+
+Then we use the following to get out the gt
+
+```{r gt out}
+
+found <- lapply(obj_list, function(x) {
+  
+  vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(x$vcf_rds))
+
+  # create output file name
+  output <- paste0("cat_region_",x$region,"_vcf_",vcf_num)
+  
+  any(grepl(output, coi$file))
+
+})
+
+nms <- lapply(obj_list, function(x) {
+  
+  vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(x$vcf_rds))
+
+  # create output file name
+  output <- paste0("cat_region_",x$region,"_vcf_",vcf_num)
+
+  }) %>% unlist
+
+gts <- pbapply::pblapply(obj_list, function(x) {
+
+  # read in the vcf
+  vcfRobj <- readRDS(x$vcf_rds)
+  if(is.list(vcfRobj)) {vcfRobj <- vcfRobj[[1]]}
+  
+  vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(x$vcf_rds))
+  
+  # subset to samples for this region
+  vcfRobj <- vcfRmanip::select_samples(vcfRobj, x$meta_df$Sample[x$meta_df$cluster == x$region])
+  
+  # create genotype matrix for RMCL (-1, 0, 0.5, 1)
+  gtmat <- vcfRmanip::gtmat012(vcfRobj)/2
+  gtmat[is.na(gtmat)] <- -1
+  gtmat <- t(gtmat)
+  colnames(gtmat) <- rownames(vcfRobj@fix)
+  
+  return(gtmat)
+  
+})
+
+ names(gts) <- nms[which(unlist(found))]
+saveRDS(gts, file.path(here::here(),"analysis/data/derived/McCOIL_work/RMCL_gts.rds"))
+
+
+wsafs <- pbapply::pblapply(obj_list, function(x) {
+
+  # read in the vcf
+  vcfRobj <- readRDS(x$vcf_rds)
+  if(is.list(vcfRobj)) {vcfRobj <- vcfRobj[[1]]}
+  
+  vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(x$vcf_rds))
+  
+  # subset to samples for this region
+  vcfRobj <- vcfRmanip::select_samples(vcfRobj, x$meta_df$Sample[x$meta_df$cluster == x$region])
+   
+  # extract coverage and counts matrices
+  coverage <- t(vcfR::extract.gt(vcfRobj, element = "DP", as.numeric = T))
+  counts_raw <- t(vcfR::extract.gt(vcfRobj, element = "AD"))
+  counts <- vcfR::masplit(counts_raw, record = 1, sort = FALSE, decreasing = FALSE)
+  wsaf <- counts/coverage
+  
+  return(wsaf)
+  
+})
+
+names(wsafs) <- nms
+saveRDS(wsafs, file.path(here::here(),"analysis/data/derived/McCOIL_work/RMCL_wsafs.rds"))
+
+```
