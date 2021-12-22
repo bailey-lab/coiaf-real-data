@@ -56,4 +56,4 @@ saveRDS(
 )
 
 # Remove raw region data
-system(glue::glue('rm -f { here::here("raw-regions", "*")}'))
+system(glue::glue('rm -v { here::here("raw-regions", "*.rds")}'))
