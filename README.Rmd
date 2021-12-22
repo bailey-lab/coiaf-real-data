@@ -1,0 +1,33 @@
+---
+output: github_document
+bibliography: references/references.bib
+csl: references/plos-computational-biology.csl
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Real Data Analysis With coiaf
+
+<!-- badges: start -->
+[![Requirement](https://img.shields.io/badge/requirement-coiaf-blue?logo=github)](https://github.com/bailey-lab/coiaf)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<!-- badges: end -->
+
+In this repository we store the real data analysis we conducted to test the
+software package [{coiaf}](https://github.com/bailey-lab/coiaf).
+
+## Data Source
+We analysed samples from the MalariaGEN *Plasmodium falciparum* Community
+Project [@malariagen_open_2021]. The MalariaGEN *Plasmodium falciparum*
+Community Project provides genomic data from over 7,000 *P. falciparum* samples
+from 28 malaria-endemic countries in Africa, Asia, South America, and Oceania
+from 2002-2015. Detailed information about the data release including brief
+descriptions of contributing partner studies and study locations is available in
+the supplementary of MalariaGEN *et al.*.
