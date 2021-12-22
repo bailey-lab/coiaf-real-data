@@ -31,3 +31,5 @@ from 28 malaria-endemic countries in Africa, Asia, South America, and Oceania
 from 2002-2015. Detailed information about the data release including brief
 descriptions of contributing partner studies and study locations is available in
 the supplementary of MalariaGEN *et al.*.
+
+## References

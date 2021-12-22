@@ -24,6 +24,8 @@ release including brief descriptions of contributing partner studies and
 study locations is available in the supplementary of MalariaGEN *et
 al.*.
 
+## References
+
 <div id="refs" class="references csl-bib-body">
 
 <div id="ref-malariagen_open_2021" class="csl-entry">
