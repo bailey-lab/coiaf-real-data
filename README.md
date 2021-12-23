@@ -10,8 +10,8 @@
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
 
-In this repository we store the real data analysis we conducted to test
-the software package [{coiaf}](https://github.com/bailey-lab/coiaf).
+This repository stores the real data analysis conducted to test the
+software package [{coiaf}](https://github.com/bailey-lab/coiaf).
 
 ## Data Source
 
