@@ -17,6 +17,7 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
 
 # Load list of sample names
 high_coi_names <- readRDS(here::here("metadata", "high_coi_names.rds"))
+# low_coi_names <- readRDS(here::here("metadata", "low_coi_names.rds"))
 
 # Function for running methods
 run_method <- function(sample_name, input, fn, coi_method) {
@@ -62,6 +63,27 @@ run_method <- function(sample_name, input, fn, coi_method) {
 
     if (fn == "compute_coi") coi$coi else coi
   }
+}
+
+# Function for converting the list of predictions to a single number
+find_coi <- function(vector, cluster_size, threshold) {
+  length_seq <- length(seq(0, 0.2, 0.01))
+  found_coi <- FALSE
+
+  # Start at a seq_error of 0.05 or 5%
+  for (i in seq(6, length_seq - cluster_size)) {
+    cluster <- vector[i:(i + cluster_size)]
+    min <- min(cluster)
+    max <- max(cluster)
+
+    if (((max - min) <= threshold) & !found_coi) {
+      found_coi <- TRUE
+      coi <- mean(cluster)
+      break
+    }
+  }
+
+  if (found_coi) coi else 1
 }
 
 # Analyze the real data. In order to split up our operation in to smaller
@@ -126,6 +148,30 @@ raw_predictions <- lapply(
       file = names(rmcl_region)[x]
     )
 
+    # Fitler out missing data
+    pred_na <- pred %>%
+      dplyr::filter(
+        !is.na(dis_var),
+        !is.na(dis_freq),
+        !is.na(cont_var),
+        !is.na(cont_freq)
+      )
+
+    # Get only one prediction
+    pred_simple <- pred_na %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        dis_var = unlist(dis_var),
+        dis_freq = find_coi(dis_freq, 5, 0.5),
+        .after = dis_var
+      ) %>%
+      dplyr::mutate(
+        cont_var = unlist(cont_var),
+        cont_freq = find_coi(cont_freq, 5, 0.5),
+        .after = cont_var
+      ) %>%
+      dplyr::mutate(cont_freq = dplyr::if_else(cont_freq > 10, 1, cont_freq))
+
     # Summarize over the 5 rmcl runs
     rmcl_outputs <- rmcl_coi_out %>%
       dplyr::filter(stringr::str_detect(file, names(rmcl_region)[x])) %>%
@@ -138,7 +184,7 @@ raw_predictions <- lapply(
       )
 
     # Join the tibbles
-    dplyr::full_join(pred, rmcl_outputs, by = "name") %>%
+    dplyr::full_join(pred_simple, rmcl_outputs, by = "name") %>%
       dplyr::mutate(
         Region = as.numeric(stringr::str_extract(file, "(?<=region_)[:digit:]*")),
         VCF = as.numeric(stringr::str_extract(file, "(?<=vcf_)[:digit:]*"))
