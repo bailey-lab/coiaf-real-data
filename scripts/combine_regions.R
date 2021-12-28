@@ -1,3 +1,5 @@
+library(coiaf)
+
 # Declare file location
 here::i_am("scripts/combine_regions.R")
 
