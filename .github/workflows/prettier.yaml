@@ -1,0 +1,28 @@
+name: Style code
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.md"
+  push:
+    branches: [main]
+    paths:
+      - "**.md"
+
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.head_ref }}
+        fetch-depth: 0
+
+    - name: Prettify code
+      uses: creyD/prettier_action@v4.1.1
+      with:
+        prettier_options: --write **/*.md
