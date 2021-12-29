@@ -26,3 +26,4 @@ jobs:
       uses: creyD/prettier_action@v4.1.1
       with:
         prettier_options: --write **/*.md
+        commit_message: "Style markdown files"
