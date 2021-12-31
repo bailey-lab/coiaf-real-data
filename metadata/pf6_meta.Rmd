@@ -1,0 +1,117 @@
+---
+title: "Pf6 metadata"
+author: "Aris Paschalidis"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include = FALSE}
+here::i_am("metadata/pf6_meta.Rmd")
+
+library(ggplot2)
+```
+
+This file outlines how we compile the metadata for the Pf6 dataset. We first
+download the most basic metadata from the Pf6 website.
+
+```{r initial meta}
+temp_file <- tempfile()
+download.file(
+  "ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",
+  temp_file
+)
+meta <- data.table::fread(temp_file)
+```
+
+We can then cluster our samples into suitably close regions, for which we assume
+the same PLMAF exists but without reducing our $n$. We can use a silhouette plot
+to visualize the optimum number of regions to guide our decisions.
+
+```{r k-means}
+# K Means
+locations <- unique(meta[, c("Lat", "Long")])
+
+sis <- 2:(nrow(locations) - 1)
+for (k in sis) {
+  si <- cluster::silhouette(cluster::pam(x = locations, k))
+  sis[k - 1] <- mean(si[, 3])
+}
+
+# Silhouette plot
+# N.B. element_line throws a warning when give it a list as an input. A
+# workaround for this for making the number a different color is to use
+# `ggtext::element_markdown`, but this does not work for making the tick mark
+# another color
+sil <- data.frame(
+  cluster = seq_along(sis) + 1,
+  sis = sis
+)
+ggplot(sil, aes(x = cluster, y = sis)) +
+  geom_point() +
+  geom_vline(xintercept = which(diff(sign(diff(sis))) == -2) + 2, linetype = 5) +
+  geom_vline(xintercept = 24, linetype = 5, color = "red") +
+  annotation_custom(
+    grob = grid::segmentsGrob(gp = grid::gpar(col = "red", lwd = 2)),
+    xmin = 24, xmax = 24, ymin = -0.025, ymax = -0.02
+  ) +
+  scale_x_continuous(breaks = c(0, 20, 24, 40, 60)) +
+  labs(x = "Number of Clusters", y = "Average Silhoutte Score") +
+  coiaf::theme_coiaf() +
+  theme(
+    axis.title = element_text(size = 8),
+    axis.text.x = ggtext::element_markdown(color = c("black", "black", "red", "black", "black")),
+    axis.ticks.x = element_line(color = c("black", "black", "red", "black", "black"))
+  )
+```
+
+Based on this plot, we select 24 regions as the optimal cluster number. We then
+cluster our samples and combine the data with our predictions.
+
+```{r cluster}
+# Clustering with 24 locations
+ks <- cluster::pam(meta[, c("Lat", "Long")], k = 24)
+meta$color <- as.factor(ks$clustering)
+```
+
+We may also be interested in the prevalence of malaria in various regions and
+the FwS metric.
+
+```{r prevalence data, message = FALSE, warning = FALSE}
+# Get the lat longs
+coords <- data.frame(meta$Long, meta$Lat)
+names(coords) <- c("x", "y")
+
+# make column for 2-10 year old prevalence
+meta$prev_2_10 <- as.numeric(meta$Year)
+meta <- tidyr::drop_na(meta)
+
+# get rasters using malariaAtlas package (this will take like 15 mins to download)
+PfPR2_10 <- malariaAtlas::getRaster(year = sort(unique(meta$prev_2_10)))
+
+# loop through and extra malaria prevalence
+for (i in seq_along(sort(unique(meta$Year)))) {
+  year <- sort(unique(meta$Year))[i]
+  pos <- which(meta$Year == year)
+  i_coords <- coords[pos, ]
+  prev <- raster::extract(PfPR2_10[[i]], i_coords)
+  meta$prev_2_10[pos] <- prev
+}
+
+meta
+```
+
+```{r fws data}
+fws <- read.csv("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_fws.txt", sep = "\t")
+fws
+```
+
+Finally, we can combine all our metadata together and save.
+
+```{r final metadata}
+combine_meta <- dplyr::left_join(meta, fws, by = "Sample")
+
+saveRDS(combine_meta, here::here("metadata", "pf6_meta.rds"))
+```
