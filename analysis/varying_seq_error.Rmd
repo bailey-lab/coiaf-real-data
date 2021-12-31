@@ -1,0 +1,195 @@
+---
+title: "Studying the effect of sequencing error"
+author: "Aris Paschalidis"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(coiaf)
+library(ggplot2)
+library(patchwork)
+```
+
+One of the things we will notice when running our methods on the Pf6 dataset is
+that in many cases we actually end up predicting the maximum COI allowable by
+our algorithims. In many cases, this is actually the effect of noisy data, which
+makes it difficult for our algorithims to infer the correct sequencing error. In
+fact, typically noisy data skews our estimations to larger numbers. As a COI of
+25 is quite large, and would be rarely seen in a population, we want to explore
+different strategies to reducing the number of points that predict such a high
+sequencing error.
+
+## Initial approach
+
+The first approach we tried involved running our complete Pf6 dataset with
+different levels of sequencing error. Unfortunately, we soon realized that this
+was very time intensive and was not the ideal strategy. Furthermore, a
+difficulty with this strategy was then finding out how to combine all the data
+together.
+
+```{r approach 1}
+purrr::map_dfr(
+  c(seq_0_01 = "0_01", seq_0_02 = "0_02", seq_0_03 = "0_03", seq_0_05 = "0_05"),
+  ~ readRDS(here::here(
+      "data-outputs", 
+      "vary-seq-error", 
+      glue::glue("full_seq_error_{ .x }.rds")
+    )),
+  .id = "seq_error"
+)
+```
+
+## Focus on high COI samples
+
+In an effort to reduce the time it took to run our data with varying sequencing
+error, we next set out to isolate the samples that had a high COI estimation.
+
+```{r high coi}
+rmcl_predictions <- readRDS(here::here("data-outputs", "base_pf6.rds"))
+
+high_isolated <- rmcl_predictions %>% 
+  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>% 
+  dplyr::select(name, dis_freq_med, cont_freq_med, Region)
+
+high_names <- dplyr::pull(high_isolated, name)
+```
+
+For completion's sake, we also generated a list of all the low COI sample names.
+
+```{r low coi}
+low_isolated <- rmcl_predictions %>% 
+  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>% 
+  dplyr::select(name, dis_freq_med, cont_freq_med, Region)
+
+low_names <- dplyr::pull(low_isolated, name)
+```
+
+```{r save sample names, eval = FALSE, include = FALSE}
+saveRDS(high_names, here::here("metadata", "high_coi_names.rds"))
+saveRDS(low_names, here::here("metadata", "low_coi_names.rds"))
+```
+
+Using this information, we set up a
+[script](https://github.com/bailey-lab/coiaf-real-data/blob/main/scripts/) to
+run each of the 24 regions of data individually. This allows us to run all the
+data in tandem.
+
+## The ideal COI estimate
+
+Our approach to running our data was as follows: for all high COI samples (as
+defined in the code above), we would determine the COI for a series of different
+sequencing errors. In particular the sequencing error would range from `0` to
+`0.2` in increments of `0.01`. Given this set of COI estimations, we would then
+try to find the "ideal" COI estimate.
+
+For instance, let us assume we have an output that looks like the following.
+
+```{r example, echo = FALSE}
+example <- tibble::tribble(
+  ~name, ~dis_var, ~dis_freq, ~cont_var, ~cont_freq, ~file,
+  "PD1143-C", 1, c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 1.0614, c(25, 25, 25, 25, 9.6824, 6.6559, 4.8649, 4.123, 3.9908, 3.6886, 2.7904, 2.7904, 2.7118, 2.5009, 2.5335, 2.5335, 2.5335, 2.3236, 2.3236, 2.2206, 2.0252), "cat_region_7_vcf_0",
+  "PD1422-C", 1, c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 1.0422, c(25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 10.8382, 7.2526, 7.2526, 7.2526, 5.7677, 5.7677, 5.7677, 4.8283), "cat_region_7_vcf_0",
+  "PD1000-C", 1, c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 1.0333, c(25, 25, 25, 25, 25, 25, 10.3831, 7.0303, 6.5352, 6.1054, 5.3967, 5.3967, 5.0201, 5.0201, 4.7017, 4.4113, 4.1445, 4.221, 4.221, 4.221, 4.2519), "cat_region_7_vcf_0",
+  "PD0472-C", 1, c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 1.0636, c(25, 25, 25, 8.505, 5.0221, 4.0378, 3.3383, 2.9507, 2.7012, 2.7012, 2.3443, 2.1305, 2.1305, 1.9847, 1.9847, 1.9847, 2.1249, 1.986, 1.986, 2.1255, 2.1255), "cat_region_7_vcf_0",
+  "PD1382-C", 1, c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 1.0286, c(19.9982, 19.9982, 11.0352, 5.1662, 4.2782, 3.6735, 3.2969, 3.1009, 2.5787, 2.442, 2.442, 2.2217, 2.2217, 1.7969, 1.583, 1.583, 1.583, 1.7579, 1.9588, 1.9588, 1.7492), "cat_region_7_vcf_0"
+)
+example
+```
+
+In order to understand the trend in COI estimation, we can actually plot the
+data.
+
+```{r create plotting function, include = FALSE}
+plot_error <- function(data, col) {
+  plot_data <- data %>% 
+    tidyr::unnest_longer({{ col }}) %>% 
+    tibble::add_column(seq_error = seq(0, 0.2, 0.01)) %>% 
+    dplyr::slice(-1)
+  
+  ggplot(plot_data, aes(x = seq_error, y = {{ col }})) +
+    geom_point() +
+    geom_line() +
+    geom_hline(yintercept = plot_data$dis_var[[1]], color = "blue") +
+    coiaf::theme_coiaf()
+}
+```
+
+```{r examine samples}
+plot_list <- purrr::map(
+  seq_len(nrow(example)),
+  function(x) {
+    sample <- example %>% 
+      dplyr::slice_sample() %>% 
+      dplyr::select(name, dis_freq, cont_freq, dis_var)
+
+    plot_error(sample, dis_freq) | plot_error(sample, cont_freq)
+  }
+)
+
+wrap_plots(plot_list)
+```
+
+Interestingly, we can see that at a certain point, the COI estimation seems to
+flatten out. One strategy for finding the "ideal" COI estimate then would be to
+identify where the estimation flattens out.
+
+To do so, we can write a simple function that looks for a series of $n$ points
+that are all close to one another.
+
+```{r finding coi}
+find_coi <- function(vector, cluster_size, threshold) {
+  length_seq <- length(seq(0, 0.2, 0.01))
+  found_coi <- FALSE
+
+  # Start at a seq_error of 0.05 or 5%
+  for (i in seq(6, length_seq - cluster_size)) {
+    cluster <- vector[i:(i + cluster_size)]
+    min <- min(cluster)
+    max <- max(cluster)
+
+    if (((max - min) <= threshold) & !found_coi) {
+      found_coi <- TRUE
+      coi <- mean(cluster)
+      break
+    }
+  }
+
+  if (found_coi) coi else 1
+}
+```
+
+Applying our function to our example data:
+
+```{r ideal coi}
+example %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(
+    dis_var = unlist(dis_var),
+    dis_freq = find_coi(dis_freq, 5, 0.5),
+    .after = dis_var
+  ) %>%
+  dplyr::mutate(
+    cont_var = unlist(cont_var),
+    cont_freq = find_coi(cont_freq, 5, 0.5),
+    .after = cont_var
+  )
+```
+
+Applying our ideal COI estimate to the samples with the highest COI estimates
+yielding improvement in our results. However, there were still several samples
+that had a COI estimation that was larger than anticipated. In the end, we
+decided to apply the ideal COI estimate strategy to all the samples in the Pf6
+dataset. This resulted in our final Pf6 predictions.
+
+```{r final predictions}
+readRDS(here::here("data-outputs", "freq_variation.rds"))
+```
