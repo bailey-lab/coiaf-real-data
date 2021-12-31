@@ -15,15 +15,8 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
   dplyr::rename(rmcl_025 = COI_025) %>%
   dplyr::rename(rmcl_975 = COI_975)
 
-# Load list of sample names
-high_coi_names <- readRDS(here::here("metadata", "high_coi_names.rds"))
-# low_coi_names <- readRDS(here::here("metadata", "low_coi_names.rds"))
-
 # Function for running methods
 run_method <- function(sample_name, input, fn, coi_method) {
-  # Only compute for patients with a high COI
-  if (!sample_name %in% high_coi_names) return(NA)
-
   if (coi_method == "frequency") {
     purrr::map_dbl(
       seq(0, 0.2, 0.01),
