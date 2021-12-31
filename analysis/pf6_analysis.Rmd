@@ -1,0 +1,388 @@
+---
+title: "Pf6 analysis"
+author: "Aris Paschalidis"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include = FALSE}
+# Here, we set default options for our markdown file
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+# Change the way tibble prints so only prints 5 extra columns
+options(tibble.max_extra_cols = 5)
+
+library(coiaf)
+library(ggplot2)
+library(patchwork)
+```
+
+In this analysis file, we examine the result of running our novel algorithms on
+the Pf6 dataset. Additionally, we compare the results of our algorithm with the
+current state of the art model for predicting COI -- THE REAL McCOIL.
+
+We first load in our data.
+
+```{r read rmcl data}
+# Path to data
+path <- "~/Desktop/Malaria/COI data/"
+
+# Read in the real data and the REAL McCOIL COI predictions
+rmcl_wsafs <- readRDS(paste0(path, "RMCL_wsafs_unique.rds"))
+rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
+  tibble::as_tibble() %>%
+  dplyr::mutate(dplyr::across(c(file, name), as.character)) %>%
+  dplyr::rename(rmcl = COI) %>%
+  dplyr::rename(rmcl_025 = COI_025) %>%
+  dplyr::rename(rmcl_975 = COI_975)
+```
+
+```{r load pf6 results}
+complete_predictions <- readRDS(here::here(
+  "data-outputs", 
+  "freq_variation.rds"
+))
+```
+
+We want to make sure that we have tested all the patients, so we cross check our
+results with the results from THE REAL McCOIL and the initial data matrices.
+
+```{r number of patients}
+# According to our predictions
+length(unique(complete_predictions$name))
+
+# According to rmcl output
+length(unique(rmcl_coi_out$name))
+
+# According to data matrices
+purrr::map(seq_len(length(rmcl_wsafs)), ~ rownames(rmcl_wsafs[[.x]])) %>% 
+  unlist() %>%
+  unique() %>%
+  length()
+```
+
+Looking at these values, we can see that for our data matrices and our
+predictions the number of patients match. However, THE REAL McCOIL output has
+fewer total patients. We need to be sure to exclude these when we are comparing
+our two methods. We, therefore, end up with `r
+length(unique(rmcl_coi_out$name))` samples.
+
+```{r exclude patients}
+exclude <- setdiff(unique(complete_predictions$name), unique(rmcl_coi_out$name))
+compare_data <- complete_predictions %>%
+  dplyr::filter(!name %in% exclude) %>%
+  dplyr::filter(rmcl_med != 25) %>%
+  dplyr::relocate(Region, .after = dplyr::last_col())
+```
+
+## Evaluate predictions
+
+We first reshape our data so that we have a single column with our COI
+estimates. This involves creating two new additional column to represent the
+coi_method and optimization method we used to compute the COI.
+
+```{r pivoting data}
+pivot_data <- compare_data %>%
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with(c("dis", "cont")),
+    names_to = c(".value", "coi_method"),
+    names_pattern = "(.*)_(.*)_.*"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::any_of(c("dis", "cont")),
+    names_to = "optimization",
+    values_to = "COI",
+    values_drop_na = TRUE
+  ) %>%
+  dplyr::relocate(
+    dplyr::any_of(c("coi_method", "optimization", "COI")),
+    .after = name
+  )
+```
+
+We can next plot all our estimates and further include the deviation from the
+median THE REAL McCOIL estimation.
+
+```{r result figure}
+panela <- ggplot(
+  data = dplyr::filter(pivot_data, coi_method == "var"),
+  mapping = aes(y = COI, x = rmcl_med, color = optimization)
+) +
+  scale_size_area() +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_count(alpha = 0.8, position = position_jitter(width = 0.1)) +
+  theme_coiaf() +
+  labs(
+    title = "Variant Method",
+    y = "coiaf Prediction",
+    color = "Optimization Method"
+  ) +
+  scale_color_manual(
+    labels = c("Continuous", "Discrete"), 
+    values = c("#00239CFF", "#E10600FF")
+  ) +
+  guides(size = "none") +
+  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+
+panelb <- ggplot(
+  data = dplyr::filter(pivot_data, coi_method == "freq"),
+  mapping = aes(y = COI, x = rmcl_med, color = optimization)
+) +
+  scale_size_area() +
+  geom_abline(color = "gray", size = 0.5) +
+  ggplot2::geom_count(alpha = 0.8, position = position_jitter(width = 0.1)) +
+  theme_coiaf() +
+  labs(
+    title = "Frequency Method",
+    y = "coiaf Prediction",
+    color = "Optimization Method"
+  ) +
+  scale_color_manual(
+    labels = c("Continuous", "Discrete"), 
+    values = c("#00239CFF", "#E10600FF")
+  ) +
+  guides(size = "none") +
+  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+
+panelc <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
+  geom_density(alpha = 0.6) +
+  labs(x = "COI - Median RMCL", y = "Density", fill = "COI Method") +
+  scale_fill_manual(
+    labels = c("Variant", "Frequency"), 
+    values = c("#4B878BFF", "#D01C1FFF")
+  ) +
+  theme_coiaf() +
+  theme(legend.position = "right")
+
+# Use patchwork to make life easier
+patchwork <- (panela / panelb) | panelc
+patchwork +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+```
+
+## World maps
+
+We need to access the Pf6 metadata in order to create a world map as the
+metadata contains information about the latitude and longitude of each sample.
+
+```{r load meta}
+meta <- readRDS(here::here("metadata", "pf6_meta.rds"))
+
+patient_lat_long <- dplyr::left_join(
+  compare_data, meta,
+  by = c("name" = "Sample")
+)
+```
+
+We can then generate several world maps with our data!
+
+```{r world map, fig.height = 2}
+# Get average of data
+map_average <- patient_lat_long %>%
+  dplyr::group_by(Site, Lat, Long) %>%
+  dplyr::summarise(
+    coi_mean = mean(dis_var_med),
+    coi_med = median(dis_freq_med),
+    prev = median(as.numeric(prev_2_10)),
+    rmcl_med = median(rmcl_med),
+    .groups = "drop"
+  ) %>%
+  dplyr::rename(lat = Lat) %>%
+  dplyr::rename(long = Long)
+
+# Plot the mean COI
+mean_world <- world_map(
+  map_average,
+  coi_mean,
+  label = "Mean COI",
+  alpha = 0.7,
+  breaks = c(1.0, 1.5, 2.0, 2.5)
+)
+mean_world
+
+# Plot the median COI
+med_world <- world_map(
+  map_average,
+  coi_med,
+  label = "Median COI",
+  alpha = 0.7,
+  breaks = c(1.0, 1.5, 2.0)
+)
+med_world
+```
+
+```{r all patients map, fig.height = 2}
+# Get data that has a COI of less than 10. This is done for now as we suspect
+# there are some samples that are wrong! Regions that predict 25!
+# The two patients are: "PN0075-C" and "PT0069-C"
+# We also set up data to be descending so that smaller COIs stay on top.
+all_world_map <- patient_lat_long %>%
+  dplyr::filter(dis_var_med <= 10) %>%
+  dplyr::arrange(desc(dis_var_med)) %>%
+  dplyr::rename(lat = Lat) %>%
+  dplyr::rename(long = Long)
+
+# Plot all patient COIs (theme is added so that there is less whitespace)
+all_world <- world_map(
+  all_world_map,
+  dis_var_med,
+  "COI",
+  alpha = 0.7,
+  breaks = c(1, 2, 4, 6, 8, 10)
+)
+all_world
+```
+
+## Prevalence & FwS
+
+We can also look at the relationship between our COI estimations and the
+prevalence of mutations as well as the FwS metric.
+
+```{r prevalence and fws}
+prev_fws <- patient_lat_long %>%
+  tidyr::pivot_longer(dplyr::any_of(c("cont_var_med", "rmcl_med")),
+    names_to = "Method",
+    values_to = "COI",
+    values_drop_na = TRUE
+  ) %>%
+  dplyr::select(name, Region:Long, prev_2_10:COI) %>%
+  dplyr::mutate(
+    prev = as.numeric(prev_2_10),
+    Method = dplyr::recode(
+      Method,
+      cont_var_med = "Continuous Method 1",
+      rmcl_med = "THE REAL McCOIL"
+    ),
+    .keep = "unused"
+  )
+
+grouped <- prev_fws %>%
+  dplyr::group_by(prev, Method) %>%
+  dplyr::summarise(
+    COI = median(COI),
+    Fws = median(Fws),
+    .groups = "drop"
+  )
+```
+
+
+```{r fws}
+# FwS
+ggplot(data = grouped, aes(x = Fws, y = COI, color = Method)) +
+  geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
+  labs(x = "FwS", y = "Estimated COI") +
+  facet_grid(~ Method) +
+  scale_color_discrete(
+    name = "Estimation Method",
+    labels = c("Discrete Method 1", "THE REAL McCOIL")
+  ) +
+  theme_coiaf()
+```
+
+
+```{r prev}
+# Prevalence
+ggplot(data = grouped, aes(x = prev, y = COI, color = Method)) +
+  geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
+  scale_x_log10(
+    breaks = c(0.01, 0.1, 1),
+    labels = c(0.01, 0.1, 1),
+    limits = c(0.01, 1)
+  ) +
+  facet_grid(~Method) +
+  labs(x = "Log10 Prevalence", y = "Estimated COI") +
+  scale_color_discrete(
+    name = "Estimation Method",
+    labels = c("Continuous Method 1", "THE REAL McCOIL")
+  ) +
+  theme_coiaf()
+
+ggplot(
+  data = tidyr::drop_na(grouped),
+  aes(
+    x = cut(prev, seq(0, 1, 0.1), right = TRUE),
+    y = COI, color = Method
+  )
+) +
+  geom_boxplot(alpha = 0.3) +
+  facet_grid(~Method) +
+  labs(x = "Prevalence", y = "Estimated COI") +
+  scale_color_discrete(
+    name = "Estimation Method",
+    labels = c("Continuous Method 1", "THE REAL McCOIL")
+  ) +
+  theme_coiaf()
+```
+
+We could also look at the prevalence of mutations slightly differently and
+look at the ridge plot.
+
+```{r prevalence}
+filter_data <- patient_lat_long %>%
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with(c("dis", "cont")),
+    names_to = c(".value", "coi_method"),
+    names_pattern = "(.*)_(.*)_.*"
+  ) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::any_of(c("dis", "cont")),
+    names_to = "optimization",
+    values_to = "COI",
+    values_drop_na = TRUE
+  ) %>%
+  dplyr::relocate(
+    dplyr::any_of(c("coi_method", "optimization", "COI")),
+    .after = name
+  ) %>%
+  dplyr::filter(coi_method == "var" & optimization == "dis")
+
+continents <- filter_data %>%
+  dplyr::group_by(Region) %>%
+  dplyr::mutate(med_prev = median(prev_2_10, na.rm = TRUE)) %>%
+  dplyr::filter(med_prev != 0) %>%
+  dplyr::arrange(prev_2_10) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    Region = forcats::as_factor(Region),
+    continent = countrycode::countrycode(Country, "country.name", "continent")
+  )
+
+sorted_prev <- continents %>%
+  dplyr::select(Region, med_prev) %>%
+  dplyr::distinct() %>%
+  dplyr::pull(med_prev) %>%
+  sort()
+
+ridges <- ggplot(
+  data = continents,
+  aes(y = forcats::fct_reorder(Region, med_prev), x = COI, fill = continent)
+) +
+  ggridges::geom_density_ridges() +
+  ggridges::theme_ridges() +
+  theme_coiaf() +
+  scale_fill_viridis_d(name = "Continent") +
+  annotate(
+    "text",
+    x = 6.25,
+    y = 1:16 + 0.3,
+    label = round(sorted_prev, 2),
+    size = 2.5
+  ) +
+  labs(x = "COI", y = "Region")
+```
+
+Combining our world map plots and our prevalence plot, we can generate an
+informative picture of COI in the world.
+
+```{r another figure}
+mean_world / med_world / ridges +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(widths = c(2, 2, 1))
+```
