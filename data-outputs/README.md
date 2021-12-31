@@ -8,9 +8,10 @@ contain the results summarized over these ten runs.
 
 ## File List
 
-- rmcl_predictions: COI estimation for the Pf6 dataset.
-- high_coi: COI estimation for samples with a COI of greater than 10. For these
-  samples we assume that the data is inherently noisy and iterate over multiple
-  sequencing errors to find the optimal COI estimation.
-- freq_variation: COI estimation for all samples in the Pf6 dataset by iterating
-  over a range of sequencing errors and finding the optimal COI estimation.
+- `base_pf6`: COI estimation for the Pf6 dataset.
+- `high_coi`: COI estimation for samples with a COI of greater than 10. For
+  these samples we assume that the data is inherently noisy and iterate over
+  multiple sequencing errors to find the optimal COI estimation.
+- `freq_variation`: COI estimation for all samples in the Pf6 dataset by 
+  iterating over a range of sequencing errors and finding the optimal COI 
+  estimation.
