@@ -13,13 +13,10 @@ editor_options:
 ---
 
 ```{r imports, echo=F, warning=F, message=F, results='hide'}
-library(tidyverse)
 library(RColorBrewer)
-library(devtools)
 library(here)
 library(rslurm)
 library(vcfR)
-devtools::install_github("OJWatson/McCOILR")
 ```
 
 This script will:
@@ -364,8 +361,6 @@ install.packages('rgdal', configure.args =
 --with-proj-lib=/gpfs/runtime/opt/proj/5.2.0/lib 
 --with-proj-share=/gpfs/runtime/opt/proj/5.2.0/share')
 
-devtools::install_github("OJWatson/roxer")
-
 df <- meta[meta$`Exclusion reason`=="Analysis_set",c("Lat", "Long")]
 ks <- cluster::pam(df[,1:2], k = 24)
 df$color <- as.factor(ks$clustering)
@@ -614,10 +609,6 @@ saveRDS(newvcfR, vcf_rds)
 We can now filter to create subsets that are not in LD. 
 
 ```{r}
-
-devtools::install_github("OJWatson/vcfRmanip")
-library(vcfR)
-
 # read in our final VCF
 vcfRobj <- vcfR::read.vcfR(O)
 

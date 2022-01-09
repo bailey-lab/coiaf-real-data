@@ -12,11 +12,8 @@ editor_options:
 ---
 
 ```{r imports, echo=F, warning=F, message=F, results='hide'}
-library(tidyverse)
 library(coiaf)
 library(cluster)
-devtools::install_github("OJWatson/roxer")
-devtools::install_github("malaria-atlas-project/malariaAtlas")
 ```
 
 ```{r download data}

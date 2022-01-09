@@ -9,6 +9,14 @@
     ]
   },
   "Packages": {
+    "DBI": {
+      "Package": "DBI",
+      "Version": "1.1.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "dcd1743af4336156873e3ce3c950b8b9",
+      "Requirements": []
+    },
     "Formula": {
       "Package": "Formula",
       "Version": "1.2-4",
@@ -139,6 +147,28 @@
         "bitops"
       ]
     },
+    "RSQLite": {
+      "Package": "RSQLite",
+      "Version": "2.2.9",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "RSQLite",
+      "RemoteRef": "RSQLite",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "2.2.9",
+      "Hash": "10d7d118b5ad61a9a02b5cbf36119ac4",
+      "Requirements": [
+        "DBI",
+        "Rcpp",
+        "bit64",
+        "blob",
+        "memoise",
+        "pkgconfig",
+        "plogr"
+      ]
+    },
     "Rcpp": {
       "Package": "Rcpp",
       "Version": "1.0.7",
@@ -215,6 +245,36 @@
       "Hash": "543776ae6848fde2f48ff3816d0628bc",
       "Requirements": []
     },
+    "bit": {
+      "Package": "bit",
+      "Version": "4.0.4",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "bit",
+      "RemoteRef": "bit",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "4.0.4",
+      "Hash": "f36715f14d94678eea9933af927bc15d",
+      "Requirements": []
+    },
+    "bit64": {
+      "Package": "bit64",
+      "Version": "4.0.5",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "bit64",
+      "RemoteRef": "bit64",
+      "RemoteRepos": "https://cran.rstudio.com",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "4.0.5",
+      "Hash": "9fe98599ca456d6552421db0d6772d8f",
+      "Requirements": [
+        "bit"
+      ]
+    },
     "bitops": {
       "Package": "bitops",
       "Version": "1.0-7",
@@ -228,6 +288,23 @@
       "RemoteSha": "1.0-7",
       "Hash": "b7d8d8ee39869c18d8846a184dd8a1af",
       "Requirements": []
+    },
+    "blob": {
+      "Package": "blob",
+      "Version": "1.2.2",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "blob",
+      "RemoteRef": "blob",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "1.2.2",
+      "Hash": "dc5f7a6598bb025d20d66bb758f12879",
+      "Requirements": [
+        "rlang",
+        "vctrs"
+      ]
     },
     "boot": {
       "Package": "boot",
@@ -401,6 +478,36 @@
       "Hash": "0f22be39ec1d141fd03683c06f3a6e67",
       "Requirements": []
     },
+    "conan": {
+      "Package": "conan",
+      "Version": "0.1.1",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "conan",
+      "RemoteUsername": "mrc-ide",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "312a42e3086966697931e3b1fe0b60735c051669",
+      "Hash": "8982f65e2f325d251b775b323bb1c5a2",
+      "Requirements": []
+    },
+    "context": {
+      "Package": "context",
+      "Version": "0.3.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "context",
+      "RemoteUsername": "mrc-ide",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "feac896d0dc3df272704455c517b5de9bdd64628",
+      "Hash": "c0c549a00e314eefff405044e8ee4d47",
+      "Requirements": [
+        "crayon",
+        "ids",
+        "storr"
+      ]
+    },
     "countrycode": {
       "Package": "countrycode",
       "Version": "1.3.0",
@@ -544,6 +651,33 @@
         "withr"
       ]
     },
+    "didehpc": {
+      "Package": "didehpc",
+      "Version": "0.3.10",
+      "Source": "GitHub",
+      "Remotes": "mrc-ide/conan, mrc-ide/context, mrc-ide/queuer, mrc-ide/rrq",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "didehpc",
+      "RemoteUsername": "mrc-ide",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "25d710440dfa5cbe2d4dacf382537d8e5312cf6b",
+      "Hash": "79ece00a890fddd084f52882cd6ff81f",
+      "Requirements": [
+        "conan",
+        "context",
+        "crayon",
+        "getPass",
+        "glue",
+        "httr",
+        "ids",
+        "jsonlite",
+        "queuer",
+        "rematch",
+        "storr",
+        "xml2"
+      ]
+    },
     "diffobj": {
       "Package": "diffobj",
       "Version": "0.3.5",
@@ -574,6 +708,28 @@
       "Hash": "cf6b206a045a684728c3267ef7596190",
       "Requirements": []
     },
+    "docopt": {
+      "Package": "docopt",
+      "Version": "0.7.1",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "docopt",
+      "RemoteRef": "docopt",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "0.7.1",
+      "Hash": "e9eeef7931ee99ca0093f3f20b88e09b",
+      "Requirements": []
+    },
+    "dotCall64": {
+      "Package": "dotCall64",
+      "Version": "1.0-1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "d0ef6cd1546530da4d72179b52856e84",
+      "Requirements": []
+    },
     "dplyr": {
       "Package": "dplyr",
       "Version": "1.0.7",
@@ -599,6 +755,14 @@
         "tidyselect",
         "vctrs"
       ]
+    },
+    "drat": {
+      "Package": "drat",
+      "Version": "0.2.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "1fdf9057af4b07b62f2f58d953c953ec",
+      "Requirements": []
     },
     "ellipsis": {
       "Package": "ellipsis",
@@ -671,6 +835,18 @@
       "RemoteSha": "1.1.0",
       "Hash": "77bd60a6157420d4ffa93b27cf6a58b8",
       "Requirements": []
+    },
+    "fields": {
+      "Package": "fields",
+      "Version": "13.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "fb9e1353a33d1a5e7b6648b33b838538",
+      "Requirements": [
+        "maps",
+        "spam",
+        "viridis"
+      ]
     },
     "forcats": {
       "Package": "forcats",
@@ -746,6 +922,16 @@
         "rstudioapi",
         "sys",
         "zip"
+      ]
+    },
+    "getPass": {
+      "Package": "getPass",
+      "Version": "0.2-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "07a91f99e56951818ab911366db77700",
+      "Requirements": [
+        "rstudioapi"
       ]
     },
     "ggplot2": {
@@ -944,6 +1130,26 @@
         "xfun"
       ]
     },
+    "hms": {
+      "Package": "hms",
+      "Version": "1.1.1",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "hms",
+      "RemoteRef": "hms",
+      "RemoteRepos": "https://cran.rstudio.com",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "1.1.1",
+      "Hash": "5b8a2dd0fdbe2ab4f6081e6c7be6dfca",
+      "Requirements": [
+        "ellipsis",
+        "lifecycle",
+        "pkgconfig",
+        "rlang",
+        "vctrs"
+      ]
+    },
     "htmlTable": {
       "Package": "htmlTable",
       "Version": "2.4.0",
@@ -1021,6 +1227,17 @@
         "jsonlite",
         "mime",
         "openssl"
+      ]
+    },
+    "ids": {
+      "Package": "ids",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "99df65cfef20e525ed38c3d2577f7190",
+      "Requirements": [
+        "openssl",
+        "uuid"
       ]
     },
     "ini": {
@@ -1156,6 +1373,20 @@
         "png"
       ]
     },
+    "lazyeval": {
+      "Package": "lazyeval",
+      "Version": "0.2.2",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "lazyeval",
+      "RemoteRef": "lazyeval",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "0.2.2",
+      "Hash": "d908914ae53b04d4c0c0fd72ecc35370",
+      "Requirements": []
+    },
     "lifecycle": {
       "Package": "lifecycle",
       "Version": "1.0.1",
@@ -1212,6 +1443,32 @@
         "stringi",
         "tidyr",
         "xml2"
+      ]
+    },
+    "maps": {
+      "Package": "maps",
+      "Version": "3.4.0",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "maps",
+      "RemoteRef": "maps",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "3.4.0",
+      "Hash": "b3d98a967ec17c80f795719529812fa0",
+      "Requirements": []
+    },
+    "maptools": {
+      "Package": "maptools",
+      "Version": "1.1-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "41e7097a7a02db986344eeca0d8a49ac",
+      "Requirements": [
+        "foreign",
+        "lattice",
+        "sp"
       ]
     },
     "markdown": {
@@ -1349,6 +1606,32 @@
       "Hash": "69fdf291af288f32fd4cd93315084ea8",
       "Requirements": [
         "askpass"
+      ]
+    },
+    "orderly": {
+      "Package": "orderly",
+      "Version": "1.4.5",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "orderly",
+      "RemoteUsername": "vimc",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "33a6e80fc26fe13e69ff3d5f17c492bfbe1380f3",
+      "Hash": "d0b1cfd25f23943a3ce854d05d073f99",
+      "Requirements": [
+        "DBI",
+        "R6",
+        "RSQLite",
+        "crayon",
+        "digest",
+        "docopt",
+        "fs",
+        "gert",
+        "ids",
+        "withr",
+        "yaml",
+        "zip"
       ]
     },
     "patchwork": {
@@ -1492,6 +1775,20 @@
         "withr"
       ]
     },
+    "plogr": {
+      "Package": "plogr",
+      "Version": "0.2.0",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "plogr",
+      "RemoteRef": "plogr",
+      "RemoteRepos": "https://cloud.r-project.org/",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "0.2.0",
+      "Hash": "09eb987710984fc2905c7129c7d85e65",
+      "Requirements": []
+    },
     "plyr": {
       "Package": "plyr",
       "Version": "1.8.6",
@@ -1583,6 +1880,25 @@
         "ps"
       ]
     },
+    "progress": {
+      "Package": "progress",
+      "Version": "1.2.2",
+      "Source": "CRAN",
+      "Repository": "CRAN",
+      "RemoteType": "standard",
+      "RemotePkgRef": "progress",
+      "RemoteRef": "progress",
+      "RemoteRepos": "https://cran.rstudio.com",
+      "RemotePkgPlatform": "source",
+      "RemoteSha": "1.2.2",
+      "Hash": "14dc9f7a3c91ebb14ec5bb9208a07061",
+      "Requirements": [
+        "R6",
+        "crayon",
+        "hms",
+        "prettyunits"
+      ]
+    },
     "ps": {
       "Package": "ps",
       "Version": "1.6.0",
@@ -1612,6 +1928,26 @@
       "Requirements": [
         "magrittr",
         "rlang"
+      ]
+    },
+    "queuer": {
+      "Package": "queuer",
+      "Version": "0.3.0",
+      "Source": "GitHub",
+      "Remotes": "mrc-ide/context",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "queuer",
+      "RemoteUsername": "mrc-ide",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "8d75f60192fddb2a227914d44a210499a1d82ab9",
+      "Hash": "7d1f8b6e13a6214ecb6dbbf0467c12f9",
+      "Requirements": [
+        "R6",
+        "context",
+        "ids",
+        "lazyeval",
+        "progress"
       ]
     },
     "rappdirs": {
@@ -1673,6 +2009,14 @@
         "xopen"
       ]
     },
+    "rematch": {
+      "Package": "rematch",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c66b930d20bb6d858cd18e1cebcfae5c",
+      "Requirements": []
+    },
     "rematch2": {
       "Package": "rematch2",
       "Version": "2.1.2",
@@ -1733,6 +2077,16 @@
         "sp"
       ]
     },
+    "rgeos": {
+      "Package": "rgeos",
+      "Version": "0.5-9",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "7cfa4f73a070042ecf141d5c1d1bfcae",
+      "Requirements": [
+        "sp"
+      ]
+    },
     "rlang": {
       "Package": "rlang",
       "Version": "0.4.12",
@@ -1769,6 +2123,34 @@
         "tinytex",
         "xfun",
         "yaml"
+      ]
+    },
+    "roxer": {
+      "Package": "roxer",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "Remotes": "mrc-ide/didehpc, vimc/orderly",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "roxer",
+      "RemoteUsername": "OJWatson",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "a164e045d6b3783f79fbb4cb0d6081b05e5f6511",
+      "Hash": "0cfcdf4be1557d91d6be5218de18a6a2",
+      "Requirements": [
+        "context",
+        "devtools",
+        "didehpc",
+        "dplyr",
+        "drat",
+        "ggplot2",
+        "here",
+        "orderly",
+        "rgeos",
+        "rworldmap",
+        "sp",
+        "usethis",
+        "xml2"
       ]
     },
     "roxygen2": {
@@ -1868,6 +2250,18 @@
         "xml2"
       ]
     },
+    "rworldmap": {
+      "Package": "rworldmap",
+      "Version": "1.3-6",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "b34f146159f7c6c4331caff2062cd5e9",
+      "Requirements": [
+        "fields",
+        "maptools",
+        "sp"
+      ]
+    },
     "scales": {
       "Package": "scales",
       "Version": "1.1.1",
@@ -1920,6 +2314,27 @@
       "Hash": "ce8613f4e8c84ef4da9eba65b874ebe9",
       "Requirements": [
         "lattice"
+      ]
+    },
+    "spam": {
+      "Package": "spam",
+      "Version": "2.8-0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "516ffcf193fa4f07683611a4474db22b",
+      "Requirements": [
+        "dotCall64"
+      ]
+    },
+    "storr": {
+      "Package": "storr",
+      "Version": "1.2.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "96034207276a46a44dc81b8d43397602",
+      "Requirements": [
+        "R6",
+        "digest"
       ]
     },
     "stringi": {
@@ -2161,6 +2576,14 @@
       "Hash": "c9c462b759a5cc844ae25b5942654d13",
       "Requirements": []
     },
+    "uuid": {
+      "Package": "uuid",
+      "Version": "1.0-3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "2097822ba5e4440b81a0c7525d0315ce",
+      "Requirements": []
+    },
     "vcfR": {
       "Package": "vcfR",
       "Version": "1.12.0",
@@ -2185,6 +2608,19 @@
         "vegan",
         "viridisLite"
       ]
+    },
+    "vcfRmanip": {
+      "Package": "vcfRmanip",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "OJWatson",
+      "RemoteRepo": "vcfRmanip",
+      "RemoteRef": "master",
+      "RemoteSha": "cc138e49fa9749bdc10d65661a42f31e641fa9b5",
+      "Hash": "4297c939b34e1932b431f47a88b1cfd8",
+      "Requirements": []
     },
     "vctrs": {
       "Package": "vctrs",

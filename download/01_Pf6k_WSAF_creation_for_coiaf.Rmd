@@ -13,13 +13,10 @@ editor_options:
 ---
 
 ```{r imports, echo=F, warning=F, message=F, results='hide'}
-library(tidyverse)
 library(RColorBrewer)
-library(devtools)
 library(here)
 library(rslurm)
 library(vcfR)
-devtools::install_github("OJWatson/McCOILR")
 ```
 
 This script uses the filtered VCF from after step 4 in 00_Pf6k_vcf_download_loci_selection:
