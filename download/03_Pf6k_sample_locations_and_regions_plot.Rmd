@@ -100,4 +100,3 @@ for(i in seq_along(sort(unique(meta$Year)))){
 
 meta$prev_2_10
 ```
-

@@ -44,7 +44,7 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
 
 ```{r load pf6 results}
 complete_predictions <- readRDS(here::here(
-  "data-outputs", 
+  "data-outputs",
   "freq_variation.rds"
 ))
 ```
@@ -60,7 +60,7 @@ length(unique(complete_predictions$name))
 length(unique(rmcl_coi_out$name))
 
 # According to data matrices
-purrr::map(seq_len(length(rmcl_wsafs)), ~ rownames(rmcl_wsafs[[.x]])) %>% 
+purrr::map(seq_len(length(rmcl_wsafs)), ~ rownames(rmcl_wsafs[[.x]])) %>%
   unlist() %>%
   unique() %>%
   length()
@@ -123,11 +123,12 @@ panela <- ggplot(
     color = "Optimization Method"
   ) +
   scale_color_manual(
-    labels = c("Continuous", "Discrete"), 
+    labels = c("Continuous", "Discrete"),
     values = c("#00239CFF", "#E10600FF")
   ) +
   guides(size = "none") +
   scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+```
 
 panelb <- ggplot(
   data = dplyr::filter(pivot_data, coi_method == "freq"),
@@ -143,21 +144,23 @@ panelb <- ggplot(
     color = "Optimization Method"
   ) +
   scale_color_manual(
-    labels = c("Continuous", "Discrete"), 
+    labels = c("Continuous", "Discrete"),
     values = c("#00239CFF", "#E10600FF")
   ) +
   guides(size = "none") +
   scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+```
 
 panelc <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
   geom_density(alpha = 0.6) +
   labs(x = "COI - Median RMCL", y = "Density", fill = "COI Method") +
   scale_fill_manual(
-    labels = c("Variant", "Frequency"), 
+    labels = c("Variant", "Frequency"),
     values = c("#4B878BFF", "#D01C1FFF")
   ) +
   theme_coiaf() +
   theme(legend.position = "right")
+```
 
 # Use patchwork to make life easier
 patchwork <- (panela / panelb) | panelc
@@ -278,7 +281,7 @@ grouped <- prev_fws %>%
 ggplot(data = grouped, aes(x = Fws, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
   labs(x = "FwS", y = "Estimated COI") +
-  facet_grid(~ Method) +
+  facet_grid(~Method) +
   scale_color_discrete(
     name = "Estimation Method",
     labels = c("Discrete Method 1", "THE REAL McCOIL")

@@ -19,17 +19,16 @@ library(rslurm)
 library(vcfR)
 ```
 
-This script uses the filtered VCF from after step 4 in 00_Pf6k_vcf_download_loci_selection:
+This script uses the filtered VCF from after step 4 in
+00_Pf6k_vcf_download_loci_selection:
 
-1. Grab the COI estiamted for each sample
+1. Grab the COI estimated for each sample
 2. Grab the WSAF used to generate these into a coiaf format
 3. Bundle these together for testing coiaf
-
 
 ## Grab the COI estiamted for each sample
 
 ```{r grabbing coi}
-
 l <- list.files(file.path(here::here(), "analysis/data/derived/McCOIL_work"), full.names = TRUE)
 sums <- grep("summary", l, value = TRUE)
 
@@ -50,8 +49,8 @@ saveRDS(coi, file.path(here::here(),"analysis/data/derived/McCOIL_work/RMCL_coi_
 ## Grab the WSAF used to generate these into a coiaf format
 
 This is what was used to submit
-```{r wsaf creation for coiaf}
 
+```{r wsaf creation for coiaf}
 tf <- tempfile()
 download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",tf)
 meta <- data.table::fread(tf)
@@ -84,7 +83,6 @@ for(i in seq_along(obj_list)) {
 Then we use the following to get out the gt
 
 ```{r gt out}
-
 found <- lapply(obj_list, function(x) {
   
   vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(x$vcf_rds))
@@ -153,5 +151,4 @@ wsafs <- pbapply::pblapply(obj_list, function(x) {
 
 names(wsafs) <- nms
 saveRDS(wsafs, file.path(here::here(),"analysis/data/derived/McCOIL_work/RMCL_wsafs.rds"))
-
 ```

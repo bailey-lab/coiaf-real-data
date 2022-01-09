@@ -40,10 +40,10 @@ together.
 purrr::map_dfr(
   c(seq_0_01 = "0_01", seq_0_02 = "0_02", seq_0_03 = "0_03", seq_0_05 = "0_05"),
   ~ readRDS(here::here(
-      "data-outputs", 
-      "vary-seq-error", 
-      glue::glue("full_seq_error_{ .x }.rds")
-    )),
+    "data-outputs",
+    "vary-seq-error",
+    glue::glue("full_seq_error_{ .x }.rds")
+  )),
   .id = "seq_error"
 )
 ```
@@ -56,8 +56,8 @@ error, we next set out to isolate the samples that had a high COI estimation.
 ```{r high coi}
 rmcl_predictions <- readRDS(here::here("data-outputs", "base_pf6.rds"))
 
-high_isolated <- rmcl_predictions %>% 
-  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>% 
+high_isolated <- rmcl_predictions %>%
+  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>%
   dplyr::select(name, dis_freq_med, cont_freq_med, Region)
 
 high_names <- dplyr::pull(high_isolated, name)
@@ -66,8 +66,8 @@ high_names <- dplyr::pull(high_isolated, name)
 For completion's sake, we also generated a list of all the low COI sample names.
 
 ```{r low coi}
-low_isolated <- rmcl_predictions %>% 
-  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>% 
+low_isolated <- rmcl_predictions %>%
+  dplyr::filter(dis_freq_med < 10 & cont_freq_med < 10) %>%
   dplyr::select(name, dis_freq_med, cont_freq_med, Region)
 
 low_names <- dplyr::pull(low_isolated, name)
@@ -110,11 +110,11 @@ data.
 
 ```{r create plotting function, include = FALSE}
 plot_error <- function(data, col) {
-  plot_data <- data %>% 
-    tidyr::unnest_longer({{ col }}) %>% 
-    tibble::add_column(seq_error = seq(0, 0.2, 0.01)) %>% 
+  plot_data <- data %>%
+    tidyr::unnest_longer({{ col }}) %>%
+    tibble::add_column(seq_error = seq(0, 0.2, 0.01)) %>%
     dplyr::slice(-1)
-  
+
   ggplot(plot_data, aes(x = seq_error, y = {{ col }})) +
     geom_point() +
     geom_line() +
@@ -127,8 +127,8 @@ plot_error <- function(data, col) {
 plot_list <- purrr::map(
   seq_len(nrow(example)),
   function(x) {
-    sample <- example %>% 
-      dplyr::slice_sample() %>% 
+    sample <- example %>%
+      dplyr::slice_sample() %>%
       dplyr::select(name, dis_freq, cont_freq, dis_var)
 
     plot_error(sample, dis_freq) | plot_error(sample, cont_freq)

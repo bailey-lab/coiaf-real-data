@@ -91,7 +91,7 @@ curr_region <- regions[1]
 
 # Find all wsafs for each region
 rmcl_region <- names(rmcl_wsafs) %>%
-  stringr::str_detect(stringr::str_c("cat_", curr_region,  "_")) %>%
+  stringr::str_detect(stringr::str_c("cat_", curr_region, "_")) %>%
   purrr::keep(rmcl_wsafs, .)
 
 # Check region
