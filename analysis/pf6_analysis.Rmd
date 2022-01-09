@@ -108,14 +108,24 @@ pivot_data <- compare_data %>%
 We can next plot all our estimates and further include the deviation from the
 median THE REAL McCOIL estimation.
 
-```{r result figure}
-panela <- ggplot(
-  data = dplyr::filter(pivot_data, coi_method == "var"),
+```{r var panel}
+var_data <- dplyr::filter(pivot_data, coi_method == "var")
+
+var_panel <- ggplot(
+  data = var_data,
   mapping = aes(y = COI, x = rmcl_med, color = optimization)
 ) +
   scale_size_area() +
   geom_abline(color = "gray", size = 0.5) +
-  geom_count(alpha = 0.8, position = position_jitter(width = 0.1)) +
+  geom_count(
+    data = dplyr::filter(var_data, optimization != "dis"),
+    alpha = 0.8,
+    position = position_jitter(width = 0.1)
+  ) +
+  geom_count(
+    data = dplyr::filter(var_data, optimization == "dis"),
+    alpha = 0.8
+  ) +
   theme_coiaf() +
   labs(
     title = "Variant Method",
@@ -130,13 +140,24 @@ panela <- ggplot(
   scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
 ```
 
-panelb <- ggplot(
-  data = dplyr::filter(pivot_data, coi_method == "freq"),
+```{r freq panel}
+freq_data <- dplyr::filter(pivot_data, coi_method != "var")
+
+freq_panel <- ggplot(
+  data = freq_data,
   mapping = aes(y = COI, x = rmcl_med, color = optimization)
 ) +
   scale_size_area() +
   geom_abline(color = "gray", size = 0.5) +
-  ggplot2::geom_count(alpha = 0.8, position = position_jitter(width = 0.1)) +
+  geom_count(
+    data = dplyr::filter(freq_data, optimization != "dis"),
+    alpha = 0.8,
+    position = position_jitter(width = 0.1)
+  ) +
+  geom_count(
+    data = dplyr::filter(freq_data, optimization == "dis"),
+    alpha = 0.8
+  ) +
   theme_coiaf() +
   labs(
     title = "Frequency Method",
@@ -151,7 +172,8 @@ panelb <- ggplot(
   scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
 ```
 
-panelc <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
+```{r diff panel}
+diff_panel <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
   geom_density(alpha = 0.6) +
   labs(x = "COI - Median RMCL", y = "Density", fill = "COI Method") +
   scale_fill_manual(
@@ -162,8 +184,9 @@ panelc <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
   theme(legend.position = "right")
 ```
 
-# Use patchwork to make life easier
-patchwork <- (panela / panelb) | panelc
+```{r combine panels}
+# Use patchwork to combine plots
+patchwork <- (var_panel / freq_panel) | diff_panel
 patchwork +
   plot_annotation(tag_levels = "A") +
   plot_layout(guides = "collect") &
@@ -186,7 +209,7 @@ patient_lat_long <- dplyr::left_join(
 
 We can then generate several world maps with our data!
 
-```{r world map, fig.height = 2}
+```{r world map, warning = FALSE, fig.height = 2}
 # Get average of data
 map_average <- patient_lat_long %>%
   dplyr::group_by(Site, Lat, Long) %>%
@@ -221,7 +244,7 @@ med_world <- world_map(
 med_world
 ```
 
-```{r all patients map, fig.height = 2}
+```{r all patients map, warning = FALSE, fig.height = 2}
 # Get data that has a COI of less than 10. This is done for now as we suspect
 # there are some samples that are wrong! Regions that predict 25!
 # The two patients are: "PN0075-C" and "PT0069-C"
@@ -290,7 +313,7 @@ ggplot(data = grouped, aes(x = Fws, y = COI, color = Method)) +
 ```
 
 
-```{r prev}
+```{r prev, warning = FALSE}
 # Prevalence
 ggplot(data = grouped, aes(x = prev, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
@@ -384,7 +407,7 @@ ridges <- ggplot(
 Combining our world map plots and our prevalence plot, we can generate an
 informative picture of COI in the world.
 
-```{r another figure}
+```{r another figure, message = FALSE, warning = FALSE}
 mean_world / med_world / ridges +
   plot_annotation(tag_levels = "A") +
   plot_layout(widths = c(2, 2, 1))
