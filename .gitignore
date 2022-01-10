@@ -11,4 +11,4 @@ staging/
 .DS_Store
 raw-regions/*.rds
 **/README.html
-analysis/RMCL\ Images
+analysis/*figures*
