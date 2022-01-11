@@ -193,6 +193,47 @@ patchwork +
   theme(legend.position = "bottom")
 ```
 
+### COI by region
+
+```{r plot all data}
+# Only discrete
+ggplot(
+  data = dplyr::filter(pivot_data, optimization == "dis"),
+  mapping = aes(y = COI, x = rmcl_med, color = coi_method)
+) +
+  scale_size_area() +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_count(alpha = 0.7, position = position_jitter(width = 0.1)) +
+  facet_wrap(.~ Region, labeller = label_both) +
+  scale_x_continuous("THE REAL McCOIL Predictions", breaks = seq(1, 10)) +
+  scale_y_continuous("coiaf Predictions", breaks = seq(1, 10)) +
+  scale_color_discrete(
+    name = NULL, 
+    breaks = c("var", "freq"), 
+    labels = c("Variant Method", "Frequency Method")
+  ) +
+  theme_coiaf() +
+  guides(size = "none")
+
+# Only continuous
+ggplot(
+  data = dplyr::filter(pivot_data, optimization == "cont"),
+  mapping = aes(y = COI, x = cut_width(rmcl_med, 1), color = coi_method)
+) +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_boxplot() +
+  facet_wrap(.~ Region, labeller = label_both) +
+  scale_x_discrete("THE REAL McCOIL Predictions", labels = seq(1, 10)) +
+  scale_y_continuous("coiaf Predictions", breaks = seq(1, 10)) +
+  scale_color_discrete(
+    name = NULL, 
+    breaks = c("var", "freq"), 
+    labels = c("Variant Method", "Frequency Method")
+  ) +
+  theme_coiaf() +
+  guides(size = "none")
+```
+
 ## World maps
 
 We need to access the Pf6 metadata in order to create a world map as the
