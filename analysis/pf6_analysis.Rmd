@@ -273,7 +273,7 @@ prevalence of mutations as well as the FwS metric.
 
 ```{r prevalence and fws}
 prev_fws <- patient_lat_long %>%
-  tidyr::pivot_longer(dplyr::any_of(c("cont_var_med", "rmcl_med")),
+  tidyr::pivot_longer(dplyr::any_of(c("dis_var_med", "rmcl_med")),
     names_to = "Method",
     values_to = "COI",
     values_drop_na = TRUE
@@ -283,7 +283,7 @@ prev_fws <- patient_lat_long %>%
     prev = as.numeric(prev_2_10),
     Method = dplyr::recode(
       Method,
-      cont_var_med = "Continuous Method 1",
+      dis_var_med = "Discrete Variant Method",
       rmcl_med = "THE REAL McCOIL"
     ),
     .keep = "unused"
@@ -301,13 +301,13 @@ grouped <- prev_fws %>%
 
 ```{r fws}
 # FwS
-ggplot(data = grouped, aes(x = Fws, y = COI, color = Method)) +
+ggplot(data = prev_fws, aes(x = Fws, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
   labs(x = "FwS", y = "Estimated COI") +
   facet_grid(~Method) +
   scale_color_discrete(
     name = "Estimation Method",
-    labels = c("Discrete Method 1", "THE REAL McCOIL")
+    labels = c("Discrete Variant Method", "THE REAL McCOIL")
   ) +
   theme_coiaf()
 ```
@@ -315,7 +315,7 @@ ggplot(data = grouped, aes(x = Fws, y = COI, color = Method)) +
 
 ```{r prev, warning = FALSE}
 # Prevalence
-ggplot(data = grouped, aes(x = prev, y = COI, color = Method)) +
+ggplot(data = prev_fws, aes(x = prev, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
   scale_x_log10(
     breaks = c(0.01, 0.1, 1),
@@ -326,12 +326,12 @@ ggplot(data = grouped, aes(x = prev, y = COI, color = Method)) +
   labs(x = "Log10 Prevalence", y = "Estimated COI") +
   scale_color_discrete(
     name = "Estimation Method",
-    labels = c("Continuous Method 1", "THE REAL McCOIL")
+    labels = c("Discrete Variant Method", "THE REAL McCOIL")
   ) +
   theme_coiaf()
 
 ggplot(
-  data = tidyr::drop_na(grouped),
+  data = tidyr::drop_na(prev_fws),
   aes(
     x = cut(prev, seq(0, 1, 0.1), right = TRUE),
     y = COI, color = Method
@@ -342,7 +342,7 @@ ggplot(
   labs(x = "Prevalence", y = "Estimated COI") +
   scale_color_discrete(
     name = "Estimation Method",
-    labels = c("Continuous Method 1", "THE REAL McCOIL")
+    labels = c("Discrete Variant Method", "THE REAL McCOIL")
   ) +
   theme_coiaf()
 ```
