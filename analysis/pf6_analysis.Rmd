@@ -193,6 +193,29 @@ patchwork +
   theme(legend.position = "bottom")
 ```
 
+```{r correlation}
+wide_data <- pivot_data %>% 
+  tidyr::pivot_wider(
+    names_from = c(coi_method, optimization),
+    names_prefix = "coiaf_",
+    values_from = COI
+  )
+
+corrr <- wide_data %>% 
+  dplyr::select(dplyr::starts_with("coiaf"), rmcl_med) %>% 
+  corrr::correlate()
+
+corrr::rplot(corrr)
+corrr::network_plot(corrr)
+```
+
+```{r linear regression}
+lm(rmcl_med ~ coiaf_var_dis, data = wide_data) %>% broom::glance()
+lm(rmcl_med ~ coiaf_var_cont, data = wide_data) %>% broom::glance()
+lm(rmcl_med ~ coiaf_freq_dis, data = wide_data) %>% broom::glance()
+lm(rmcl_med ~ coiaf_freq_cont, data = wide_data) %>% broom::glance()
+```
+
 ### COI by region
 
 ```{r plot all data}
