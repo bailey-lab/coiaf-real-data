@@ -417,7 +417,7 @@ look at the ridge plot.
 ```{r prevalence}
 filter_data <- patient_lat_long %>%
   tidyr::pivot_longer(
-    cols = dplyr::starts_with(c("dis", "cont")),
+    cols = dplyr::starts_with(c("dis_", "cont_")),
     names_to = c(".value", "coi_method"),
     names_pattern = "(.*)_(.*)_.*"
   ) %>%
@@ -439,10 +439,7 @@ continents <- filter_data %>%
   dplyr::filter(med_prev != 0) %>%
   dplyr::arrange(prev_2_10) %>%
   dplyr::ungroup() %>%
-  dplyr::mutate(
-    Region = forcats::as_factor(Region),
-    continent = countrycode::countrycode(Country, "country.name", "continent")
-  )
+  dplyr::mutate(Region = forcats::as_factor(Region))
 
 sorted_prev <- continents %>%
   dplyr::select(Region, med_prev) %>%
@@ -452,12 +449,12 @@ sorted_prev <- continents %>%
 
 ridges <- ggplot(
   data = continents,
-  aes(y = forcats::fct_reorder(Region, med_prev), x = COI, fill = continent)
+  aes(y = forcats::fct_reorder(Region, med_prev), x = COI, fill = Subregion)
 ) +
   ggridges::geom_density_ridges() +
   ggridges::theme_ridges() +
   theme_coiaf() +
-  scale_fill_viridis_d(name = "Continent") +
+  scale_fill_viridis_d() +
   annotate(
     "text",
     x = 6.25,
