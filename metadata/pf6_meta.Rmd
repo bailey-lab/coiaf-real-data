@@ -26,6 +26,21 @@ download.file(
 meta <- data.table::fread(temp_file)
 ```
 
+One of the key pieces of information we will later utilize is the country in
+which each sample was obtained. In some cases, it may be more useful to look
+at clusters of regions.
+```{r country region}
+meta <- dplyr::mutate(
+  meta,
+  Subregion = countrycode::countrycode(
+    Country, 
+    origin = "country.name",
+    destination = "region23"
+  ),
+  .after = Country
+)
+```
+
 We can then cluster our samples into suitably close regions, for which we assume
 the same PLMAF exists but without reducing our $n$. We can use a silhouette plot
 to visualize the optimum number of regions to guide our decisions.
