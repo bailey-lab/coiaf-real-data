@@ -271,6 +271,13 @@ patient_lat_long <- dplyr::left_join(
 )
 ```
 
+```{r sample location summary}
+patient_lat_long %>% 
+  dplyr::count(Continent, Subregion) %>% 
+  dplyr::mutate(proportion = n / sum(n) * 100) %>% 
+  dplyr::arrange(Continent, Subregion)
+```
+
 We can then generate several world maps with our data!
 
 ```{r world map, warning = FALSE, fig.height = 2}
