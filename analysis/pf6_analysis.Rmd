@@ -283,7 +283,7 @@ We can then generate several world maps with our data!
 ```{r world map, warning = FALSE, fig.height = 2}
 # Get average of data
 map_average <- patient_lat_long %>%
-  dplyr::group_by(Site, Lat, Long) %>%
+  dplyr::group_by(Region, Lat, Long) %>%
   dplyr::summarise(
     coi_mean = mean(dis_var_med),
     coi_med = median(dis_freq_med),
@@ -321,7 +321,6 @@ med_world
 # The two patients are: "PN0075-C" and "PT0069-C"
 # We also set up data to be descending so that smaller COIs stay on top.
 all_world_map <- patient_lat_long %>%
-  dplyr::filter(dis_var_med <= 10) %>%
   dplyr::arrange(desc(dis_var_med)) %>%
   dplyr::rename(lat = Lat) %>%
   dplyr::rename(long = Long)
