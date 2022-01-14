@@ -169,17 +169,24 @@ code span.ot { color: #007020; }
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  temp_file</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>meta <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">fread</span>(temp_file)</span></code></pre></div>
-<p>One of the key pieces of information we will later utilize is the country in which each sample was obtained. In some cases, it may be more useful to look at clusters of regions.</p>
+<p>One of the key pieces of information we will later utilize is the country in which each sample was obtained. In some cases, it may be more useful to look on a broader scale at continents or subregions of sample.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>meta <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  meta,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Subregion =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Continent =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    Country, </span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">origin =</span> <span class="st">&quot;country.name&quot;</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">destination =</span> <span class="st">&quot;region23&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">destination =</span> <span class="st">&quot;continent&quot;</span></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">.after =</span> Country</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
-<pre><code>## Warning in countrycode_convert(sourcevar = sourcevar, origin = origin, destination = dest, : Some values were not matched unambiguously: Lab</code></pre>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">Subregion =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    Country, </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">origin =</span> <span class="st">&quot;country.name&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">destination =</span> <span class="st">&quot;region23&quot;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">.before =</span> Country</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<pre><code>## Warning in countrycode_convert(sourcevar = sourcevar, origin = origin, destination = dest, : Some values were not matched unambiguously: Lab
+
+## Warning in countrycode_convert(sourcevar = sourcevar, origin = origin, destination = dest, : Some values were not matched unambiguously: Lab</code></pre>
 <p>We can then cluster our samples into suitably close regions, for which we assume the same PLMAF exists but without reducing our <span class="math inline">\(n\)</span>. We can use a silhouette plot to visualize the optimum number of regions to guide our decisions.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># K Means</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>locations <span class="ot">&lt;-</span> <span class="fu">unique</span>(meta[, <span class="fu">c</span>(<span class="st">&quot;Lat&quot;</span>, <span class="st">&quot;Long&quot;</span>)])</span>
@@ -256,18 +263,18 @@ code span.ot { color: #007020; }
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>meta</span></code></pre></div>
-<pre><code>##         Sample             Study   Site    Country      Subregion      Lat
-##    1: FP0008-C 1147-PF-MR-CONWAY Kobeni Mauritania Western Africa 15.82083
-##    2: FP0009-C 1147-PF-MR-CONWAY Kobeni Mauritania Western Africa 15.82083
-##    3: FP0015-C 1147-PF-MR-CONWAY Kobeni Mauritania Western Africa 15.82083
-##    4: FP0016-C 1147-PF-MR-CONWAY Kobeni Mauritania Western Africa 15.82083
-##    5: FP0017-C 1147-PF-MR-CONWAY Kobeni Mauritania Western Africa 15.82083
-##            Long Year        ENA All samples same individual Population
-##    1:  -9.41450 2014 ERR1081237                    FP0008-C        WAF
-##    2:  -9.41450 2014 ERR1081238                    FP0009-C        WAF
-##    3:  -9.41450 2014 ERR1081239                    FP0015-C        WAF
-##    4:  -9.41450 2014 ERR1081240                    FP0016-C        WAF
-##    5:  -9.41450 2014 ERR1081241                    FP0017-C        WAF
+<pre><code>##         Sample             Study   Site Continent      Subregion    Country
+##    1: FP0008-C 1147-PF-MR-CONWAY Kobeni    Africa Western Africa Mauritania
+##    2: FP0009-C 1147-PF-MR-CONWAY Kobeni    Africa Western Africa Mauritania
+##    3: FP0015-C 1147-PF-MR-CONWAY Kobeni    Africa Western Africa Mauritania
+##    4: FP0016-C 1147-PF-MR-CONWAY Kobeni    Africa Western Africa Mauritania
+##    5: FP0017-C 1147-PF-MR-CONWAY Kobeni    Africa Western Africa Mauritania
+##            Lat      Long Year        ENA All samples same individual Population
+##    1: 15.82083  -9.41450 2014 ERR1081237                    FP0008-C        WAF
+##    2: 15.82083  -9.41450 2014 ERR1081238                    FP0009-C        WAF
+##    3: 15.82083  -9.41450 2014 ERR1081239                    FP0015-C        WAF
+##    4: 15.82083  -9.41450 2014 ERR1081240                    FP0016-C        WAF
+##    5: 15.82083  -9.41450 2014 ERR1081241                    FP0017-C        WAF
 ##       % callable QC pass Exclusion reason Is returning traveller color
 ##    1:      82.16    TRUE     Analysis_set                  FALSE     1
 ##    2:      88.85    TRUE     Analysis_set                  FALSE     1

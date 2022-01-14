@@ -28,16 +28,21 @@ meta <- data.table::fread(temp_file)
 
 One of the key pieces of information we will later utilize is the country in
 which each sample was obtained. In some cases, it may be more useful to look
-at clusters of regions.
+on a broader scale at continents or subregions of sample.
 ```{r country region}
 meta <- dplyr::mutate(
   meta,
+  Continent = countrycode::countrycode(
+    Country, 
+    origin = "country.name",
+    destination = "continent"
+  ),
   Subregion = countrycode::countrycode(
     Country, 
     origin = "country.name",
     destination = "region23"
   ),
-  .after = Country
+  .before = Country
 )
 ```
 
