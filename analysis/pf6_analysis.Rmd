@@ -358,14 +358,6 @@ prev_fws <- patient_lat_long %>%
     ),
     .keep = "unused"
   )
-
-grouped <- prev_fws %>%
-  dplyr::group_by(prev, Method) %>%
-  dplyr::summarise(
-    COI = median(COI),
-    Fws = median(Fws),
-    .groups = "drop"
-  )
 ```
 
 
@@ -380,6 +372,13 @@ ggplot(data = prev_fws, aes(x = Fws, y = COI, color = Method)) +
     labels = c("Discrete Variant Method", "THE REAL McCOIL")
   ) +
   theme_coiaf()
+
+# Correlation
+coiaf_fws <- dplyr::filter(prev_fws, Method == "Discrete Variant Method")
+cor.test(coiaf_fws$Fws, coiaf_fws$COI)
+
+rmcl_fws <- dplyr::filter(prev_fws, Method == "THE REAL McCOIL")
+cor.test(rmcl_fws$Fws, rmcl_fws$COI)
 ```
 
 
