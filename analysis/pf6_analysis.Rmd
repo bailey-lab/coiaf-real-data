@@ -351,47 +351,27 @@ kruskal.test(dis_var_med ~ Continent, data = patient_lat_long)
 
 # KW across subregions of continents
 kruskal.test(dis_var_med ~ Subregion, data = patient_lat_long)
+```
 
-# Post hoc tests
-# Wilcox test
-pairwise.wilcox.test(
-  patient_lat_long$dis_var_med, 
-  patient_lat_long$Subregion,
-  p.adjust.method = "BH"
-)
-
-# Nemenyi test
-pvalue <- PMCMRplus::kwAllPairsNemenyiTest(
+```{r nemenyi continent}
+# Post hoc Nemenyi test
+pvalue_continent <- PMCMRplus::kwAllPairsNemenyiTest(
   dis_var_med ~ as.factor(Continent), 
   data = patient_lat_long
 )$p.value
 
-purrr::map_df(tibble::as_tibble(pvalue), ~ round(.x, digits = 5)) %>% 
-  tibble::add_column(Subregion = rownames(pvalue), .before = 1)
+purrr::map_df(tibble::as_tibble(pvalue_continent), ~ round(.x, digits = 5)) %>% 
+  tibble::add_column(Continent = rownames(pvalue_continent), .before = 1)
 ```
 
+```{r nemenyi subregion}
+pvalue_subregion <- PMCMRplus::kwAllPairsNemenyiTest(
+  dis_var_med ~ as.factor(Subregion), 
+  data = patient_lat_long
+)$p.value
 
-```{r violin plot}
-ggpubr::compare_means(dis_var_med ~ Continent, data = patient_lat_long)
-
-comparisons <- list(
-  c("Africa" , "Asia"), 
-  c("Asia"   , "Oceania"), 
-  c("Oceania", "Americas"),
-  c("Africa" , "Oceania"), 
-  c("Asia"   , "Americas"), 
-  c("Africa" , "Americas") 
-)
-
-plot <- ggpubr::ggviolin(
-  data = patient_lat_long, 
-  x = "Continent",
-  y = "dis_var_med", ylab = "COI Estimate",
-  fill = "Continent"
-) +
-  ggpubr::stat_compare_means(comparisons = comparisons, label = "p.signif")
-
-ggpubr::ggpar(plot, legend = "bottom")
+purrr::map_df(tibble::as_tibble(pvalue_subregion), ~ round(.x, digits = 5)) %>% 
+  tibble::add_column(Subregion = rownames(pvalue_subregion), .before = 1)
 ```
 
 
