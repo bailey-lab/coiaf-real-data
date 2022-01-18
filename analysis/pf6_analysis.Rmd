@@ -336,6 +336,65 @@ all_world <- world_map(
 all_world
 ```
 
+```{r kruskal-wallis}
+# Mean, median COI per continent
+patient_lat_long %>% 
+  dplyr::group_by(Continent) %>% 
+  dplyr::summarise(
+    mean = mean(dis_var_med, na.rm = TRUE), 
+    median = median(dis_var_med, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# KW across 24 regions
+kruskal.test(dis_var_med ~ Continent, data = patient_lat_long)
+
+# KW across subregions of continents
+kruskal.test(dis_var_med ~ Subregion, data = patient_lat_long)
+
+# Post hoc tests
+# Wilcox test
+pairwise.wilcox.test(
+  patient_lat_long$dis_var_med, 
+  patient_lat_long$Subregion,
+  p.adjust.method = "BH"
+)
+
+# Nemenyi test
+pvalue <- PMCMRplus::kwAllPairsNemenyiTest(
+  dis_var_med ~ as.factor(Continent), 
+  data = patient_lat_long
+)$p.value
+
+purrr::map_df(tibble::as_tibble(pvalue), ~ round(.x, digits = 5)) %>% 
+  tibble::add_column(Subregion = rownames(pvalue), .before = 1)
+```
+
+
+```{r violin plot}
+ggpubr::compare_means(dis_var_med ~ Continent, data = patient_lat_long)
+
+comparisons <- list(
+  c("Africa" , "Asia"), 
+  c("Asia"   , "Oceania"), 
+  c("Oceania", "Americas"),
+  c("Africa" , "Oceania"), 
+  c("Asia"   , "Americas"), 
+  c("Africa" , "Americas") 
+)
+
+plot <- ggpubr::ggviolin(
+  data = patient_lat_long, 
+  x = "Continent",
+  y = "dis_var_med", ylab = "COI Estimate",
+  fill = "Continent"
+) +
+  ggpubr::stat_compare_means(comparisons = comparisons, label = "p.signif")
+
+ggpubr::ggpar(plot, legend = "bottom")
+```
+
+
 ## Prevalence & FwS
 
 We can also look at the relationship between our COI estimations and the
