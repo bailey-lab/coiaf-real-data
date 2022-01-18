@@ -364,7 +364,15 @@ purrr::map_df(tibble::as_tibble(pvalue_continent), ~ round(.x, digits = 5)) %>%
   tibble::add_column(Continent = rownames(pvalue_continent), .before = 1)
 ```
 
-```{r nemenyi subregion}
+```{r subregion}
+patient_lat_long %>% 
+  dplyr::group_by(Continent, Subregion) %>% 
+  dplyr::summarise(
+    mean = mean(dis_var_med, na.rm = TRUE), 
+    median = median(dis_var_med, na.rm = TRUE),
+    .groups = "drop"
+  )
+
 pvalue_subregion <- PMCMRplus::kwAllPairsNemenyiTest(
   dis_var_med ~ as.factor(Subregion), 
   data = patient_lat_long
