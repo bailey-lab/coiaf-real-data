@@ -437,10 +437,12 @@ ggplot(
 ```
 
 We could also look at the prevalence of mutations slightly differently and
-look at the ridge plot.
+look at the ridge plot. Here, we no longer compare our data to THE REAL McCOIL
+so we do not want to remove any observations from our data.
 
 ```{r prevalence}
 filter_data <- patient_lat_long %>%
+  dplyr::select(!dplyr::starts_with("rmcl")) %>% 
   tidyr::pivot_longer(
     cols = dplyr::starts_with(c("dis_", "cont_")),
     names_to = c(".value", "coi_method"),
@@ -483,7 +485,7 @@ ridges <- ggplot(
   annotate(
     "text",
     x = 6.25,
-    y = 1:16 + 0.3,
+    y = 1:17 + 0.3,
     label = round(sorted_prev, 2),
     size = 2.5
   ) +
