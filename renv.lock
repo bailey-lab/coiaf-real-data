@@ -476,16 +476,10 @@
     },
     "cli": {
       "Package": "cli",
-      "Version": "3.1.0",
-      "Source": "CRAN",
+      "Version": "3.1.1",
+      "Source": "Repository",
       "Repository": "CRAN",
-      "RemoteType": "standard",
-      "RemotePkgRef": "cli",
-      "RemoteRef": "cli",
-      "RemoteRepos": "https://cloud.r-project.org/",
-      "RemotePkgPlatform": "source",
-      "RemoteSha": "3.1.0",
-      "Hash": "66a3834e54593c89d8beefb312347e58",
+      "Hash": "da5160e769a652e3ec7111d63883f9bc",
       "Requirements": [
         "glue"
       ]
@@ -1180,16 +1174,10 @@
     },
     "glue": {
       "Package": "glue",
-      "Version": "1.6.0",
-      "Source": "CRAN",
+      "Version": "1.6.1",
+      "Source": "Repository",
       "Repository": "CRAN",
-      "RemoteType": "standard",
-      "RemotePkgRef": "glue",
-      "RemoteRef": "glue",
-      "RemoteRepos": "https://cloud.r-project.org/",
-      "RemotePkgPlatform": "source",
-      "RemoteSha": "1.6.0",
-      "Hash": "b8bb7aaf248e45bac08ebed86f3a0aa4",
+      "Hash": "de07842fc27ebf60e1102091c0c85e47",
       "Requirements": []
     },
     "gmp": {
@@ -2307,14 +2295,8 @@
     "rlang": {
       "Package": "rlang",
       "Version": "0.4.12",
-      "Source": "CRAN",
-      "Repository": "CRAN",
-      "RemoteType": "standard",
-      "RemotePkgRef": "rlang",
-      "RemoteRef": "rlang",
-      "RemoteRepos": "https://cloud.r-project.org/",
-      "RemotePkgPlatform": "source",
-      "RemoteSha": "0.4.12",
+      "Source": "Repository",
+      "Repository": "RSPM",
       "Hash": "0879f5388fe6e4d56d7ef0b7ccb031e5",
       "Requirements": []
     },
