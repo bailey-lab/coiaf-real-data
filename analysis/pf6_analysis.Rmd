@@ -433,6 +433,7 @@ cor.test(rmcl_fws$Fws, rmcl_fws$COI)
 # Prevalence
 ggplot(data = prev_fws, aes(x = prev, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "black") +
   scale_x_log10(
     breaks = c(0.01, 0.1, 1),
     labels = c(0.01, 0.1, 1),
