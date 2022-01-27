@@ -71,7 +71,8 @@ pivot_data <- complete_predictions %>%
   dplyr::relocate(
     dplyr::any_of(c("coi_method", "optimization", "COI")),
     .after = name
-  )
+  ) %>% 
+  dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med))
 ```
 
 We can next plot all our estimates and further include the deviation from the
@@ -173,6 +174,8 @@ wide_data <- pivot_data %>%
 corrr <- wide_data %>% 
   dplyr::select(dplyr::starts_with("coiaf"), rmcl_med) %>% 
   corrr::correlate()
+
+corrr::focus(corrr, rmcl_med)
 
 corrr::rplot(corrr)
 corrr::network_plot(corrr)
@@ -359,6 +362,7 @@ prevalence of mutations as well as the FwS metric.
 
 ```{r prevalence and fws}
 prev_fws <- patient_lat_long %>%
+  dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med)) %>% 
   tidyr::pivot_longer(dplyr::any_of(c("dis_var_med", "rmcl_med")),
     names_to = "Method",
     values_to = "COI",
