@@ -49,37 +49,6 @@ complete_predictions <- readRDS(here::here(
 ))
 ```
 
-We want to make sure that we have tested all the patients, so we cross check our
-results with the results from THE REAL McCOIL and the initial data matrices.
-
-```{r number of patients}
-# According to our predictions
-length(unique(complete_predictions$name))
-
-# According to rmcl output
-length(unique(rmcl_coi_out$name))
-
-# According to data matrices
-purrr::map(seq_len(length(rmcl_wsafs)), ~ rownames(rmcl_wsafs[[.x]])) %>%
-  unlist() %>%
-  unique() %>%
-  length()
-```
-
-Looking at these values, we can see that for our data matrices and our
-predictions the number of patients match. However, THE REAL McCOIL output has
-fewer total patients. We need to be sure to exclude these when we are comparing
-our two methods. We, therefore, end up with `r
-length(unique(rmcl_coi_out$name))` samples.
-
-```{r exclude patients}
-exclude <- setdiff(unique(complete_predictions$name), unique(rmcl_coi_out$name))
-compare_data <- complete_predictions %>%
-  dplyr::filter(!name %in% exclude) %>%
-  dplyr::filter(rmcl_med != 25) %>%
-  dplyr::relocate(Region, .after = dplyr::last_col())
-```
-
 ## Evaluate predictions
 
 We first reshape our data so that we have a single column with our COI
@@ -87,7 +56,7 @@ estimates. This involves creating two new additional column to represent the
 coi_method and optimization method we used to compute the COI.
 
 ```{r pivoting data}
-pivot_data <- compare_data %>%
+pivot_data <- complete_predictions %>%
   tidyr::pivot_longer(
     cols = dplyr::starts_with(c("dis", "cont")),
     names_to = c(".value", "coi_method"),
@@ -266,7 +235,7 @@ metadata contains information about the latitude and longitude of each sample.
 meta <- readRDS(here::here("metadata", "pf6_meta.rds"))
 
 patient_lat_long <- dplyr::left_join(
-  compare_data, meta,
+  complete_predictions, meta,
   by = c("name" = "Sample")
 )
 ```
