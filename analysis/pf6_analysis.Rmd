@@ -46,7 +46,14 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
 complete_predictions <- readRDS(here::here(
   "data-outputs",
   "freq_variation.rds"
-))
+)) %>% 
+  dplyr::filter(
+    !is.na(dis_var_med), 
+    !is.na(dis_freq_med), 
+    !is.na(cont_var_med), 
+    !is.na(cont_freq_med), 
+    !is.na(Region)
+  )
 ```
 
 ## Evaluate predictions
