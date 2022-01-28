@@ -492,8 +492,8 @@ ridges <- ggplot(
   scale_fill_viridis_d() +
   annotate(
     "text",
-    x = 6.25,
-    y = 1:17 + 0.3,
+    x = 7.25,
+    y = seq_len(length(sorted_prev)) + 0.35,
     label = round(sorted_prev, 2),
     size = 2.5
   ) +
@@ -506,5 +506,5 @@ informative picture of COI in the world.
 ```{r another figure, message = FALSE, warning = FALSE}
 mean_world / med_world / ridges +
   plot_annotation(tag_levels = "A") +
-  plot_layout(widths = c(2, 2, 1))
+  plot_layout(widths = c(2, 2, 1), heights = c(1, 1, 2))
 ```
