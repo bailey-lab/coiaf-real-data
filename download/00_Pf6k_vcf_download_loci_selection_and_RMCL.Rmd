@@ -77,8 +77,7 @@ origins and relatedness structure of mixed infections vary with local prevalence
 of P. falciparum malaria ][https://elifesciences.org/articles/40845].
 
 ```{r}
-bcf_filter <- function(x,
-                       dir = "/gpfs/data/jbailey5/apascha1/pf_release6/") {
+bcf_filter <- function(x, dir) {
   if (x < 10) {
     x <- paste0("0", x)
   }
@@ -96,8 +95,8 @@ bcf_filter <- function(x,
 }
 
 # submit to slurm
-pars <- data.frame("x" = 1:14, "dir" = share_dir)
-sopt <- list(time = "1:00:00", share = TRUE)
+pars <- data.frame("x" = 1:14, "dir" = sample_dir)
+sopt <- list(time = "1:00:00")
 setwd(slurm_dir)
 
 sjob <- rslurm::slurm_apply(bcf_filter, pars,
@@ -105,8 +104,8 @@ sjob <- rslurm::slurm_apply(bcf_filter, pars,
   nodes = 14, cpus_per_node = 1, slurm_options = sopt,
   submit = TRUE
 )
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
-rslurm::print_job_status(sjob)
 ```
 
 ## Drop samples that don't pass quality control 
@@ -202,7 +201,7 @@ sjob <- rslurm::slurm_apply(
   submit = TRUE
 )
 
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
@@ -234,7 +233,7 @@ sjob <- rslurm::slurm_apply(bcf_allele_frequency,
   slurm_options = sopt,
   submit = TRUE
 )
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
@@ -489,7 +488,7 @@ sjob <- rslurm::slurm_apply(
   submit = TRUE
 )
 
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
@@ -630,7 +629,7 @@ sjob <- rslurm::slurm_apply(
   submit = TRUE
 )
 
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
@@ -717,7 +716,7 @@ sjob <- rslurm::slurm_apply(ld_filter,
   slurm_options = sopt,
   submit = TRUE
 )
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
@@ -831,6 +830,6 @@ sjob <- rslurm::slurm_apply(
   slurm_options = sopt,
   submit = FALSE
 )
-rslurm::print_job_status(sjob)
+rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
