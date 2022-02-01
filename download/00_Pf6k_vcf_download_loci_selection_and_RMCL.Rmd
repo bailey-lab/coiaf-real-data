@@ -193,7 +193,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  add_objects = c("bcf_sample_subset", "bcft", "obj_list"),
+  global_objects = c("bcf_sample_subset", "bcft", "obj_list"),
   jobname = "exclusion_drops",
   nodes = 14,
   cpus_per_node = 1,
@@ -228,7 +228,7 @@ sjob <- rslurm::slurm_apply(bcf_allele_frequency,
   pars,
   jobname = "maf_allele_filter",
   nodes = 14,
-  add_objects = "bcft",
+  global_objects = "bcft",
   cpus_per_node = 1,
   slurm_options = sopt,
   submit = TRUE
@@ -480,7 +480,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  add_objects = c("sample_maf_subset_count", "obj_list"),
+  global_objects = c("sample_maf_subset_count", "obj_list"),
   jobname = "kmeans_filters",
   nodes = length(obj_list),
   cpus_per_node = 1,
@@ -621,7 +621,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  add_objects = c("loci_subset", "obj_list"),
+  global_objects = c("loci_subset", "obj_list"),
   jobname = "loci_filters",
   nodes = length(obj_list),
   cpus_per_node = 1,
@@ -711,7 +711,7 @@ sjob <- rslurm::slurm_apply(ld_filter,
   pars,
   jobname = "ld_filter",
   nodes = 10,
-  add_objects = "ld_filter",
+  global_objects = "ld_filter",
   cpus_per_node = 1,
   slurm_options = sopt,
   submit = TRUE
@@ -823,7 +823,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  add_objects = c("submit_rmcl", "obj_list"),
+  global_objects = c("submit_rmcl", "obj_list"),
   jobname = "RMCL",
   nodes = length(obj_list),
   cpus_per_node = 1,
