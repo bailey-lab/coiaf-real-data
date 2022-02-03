@@ -17,6 +17,18 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
 
 # Function for running methods
 run_method <- function(sample_name, input, fn, coi_method) {
+  # Only run frequency method if WSMAF at PLMAF of 0.5 is centered around 0.5
+  if (coi_method == "frequency") {
+    input$plaf[input$plaf > 0.5] <- 1 - input$plaf[input$plaf > 0.5]
+    last_bin <- input$wsaf[which(input$plaf > 0.49)]
+    mean_wsaf <- mean(last_bin, na.rm = TRUE)
+    wsaf_conf <- Hmisc::binconf(0.5 * length(last_bin), length(last_bin))
+    if (mean_wsaf < wsaf_conf[2] | mean_wsaf > wsaf_conf[3] ) {
+      cli::cli_inform("Unable to run the frequency method for sample { sample_name }")
+      return(NA)
+    }
+  }
+
   coi <- tryCatch(
     rlang::exec(
       fn,
