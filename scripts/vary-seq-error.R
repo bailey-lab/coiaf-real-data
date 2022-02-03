@@ -1,7 +1,7 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/high_coi_script.R")
+here::i_am("scripts/vary-seq-error.R")
 
 # Path to data
 path <- "~/Desktop/Malaria/COI data/"

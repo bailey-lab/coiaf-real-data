@@ -1,7 +1,7 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/submission_script.R")
+here::i_am("scripts/coi-region.R")
 
 # Path to data
 path <- "~/Desktop/Malaria/COI data/"
