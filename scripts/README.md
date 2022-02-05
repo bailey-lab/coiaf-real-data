@@ -19,6 +19,26 @@ rstudioapi::jobRunScript(
 )
 ```
 
+In some instances, it may be easier to run multiple jobs at once by leveraging
+global variables. For instance, instead of running each region manually and
+changing the `region` variable, we can define a global variable `region`. We can
+then iterate over a sequence of regions using the `{purrr}` package.
+
+```r
+# Remove all global objects
+rm(list = ls())
+
+# Run each of the 24 regions as seperate jobs
+purrr::walk(seq(24), function(i) {
+  region <<- i
+  rstudioapi::jobRunScript(
+    path = here::here("scripts", "<script-name>.R"),
+    name = paste("Region", i),
+    importEnv = TRUE
+  )
+})
+```
+
 A brief description of each script can be found below:
 
 - `coi-region`: computes the COI of each sample in each region.
