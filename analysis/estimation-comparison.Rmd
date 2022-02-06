@@ -1,0 +1,251 @@
+---
+title: "Comparison of estimation strategies"
+author: "Aris Paschalidis"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include = FALSE}
+# Here, we set default options for our markdown file
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(coiaf)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r base pf6}
+base_pf6 <- readRDS(here::here("data-outputs", "base_pf6.rds"))
+```
+
+```{r freq variation}
+freq_variation <- readRDS(here::here("data-outputs", "freq_variation.rds")) %>% 
+  dplyr::filter(
+    !is.na(dis_var_med), 
+    !is.na(dis_freq_med), 
+    !is.na(cont_var_med), 
+    !is.na(cont_freq_med), 
+    !is.na(Region)
+  )
+```
+
+```{r intersecting wsafs}
+intersecting_wsafs <- readRDS(here::here(
+  "data-outputs", 
+  "intersecting_wsafs.rds"
+))
+
+rmcl_predictions <- readRDS(here::here(
+  "data-outputs",
+  "rmcl_estimation.rds"
+))
+
+intersecting_wsafs <- dplyr::left_join(
+  intersecting_wsafs, 
+  rmcl_predictions, 
+  by = c("name", "Region" = "region")
+)
+```
+
+```{r intersecting wsafs low error}
+regional_wsafs <- readRDS(here::here(
+  "data-outputs", 
+  "regional_wsafs.rds"
+))
+
+regional_wsafs <- dplyr::left_join(
+  regional_wsafs, 
+  rmcl_predictions, 
+  by = c("name", "Region" = "region")
+)
+```
+
+We can see that there is a difference in the number of samples between our data
+sets. A more in depth investigation yields that there are 4 samples that are not
+in the `freq_variation` results: "PW0003-C", "PW0004-C", "PW0014-C", and
+"PW0016-C".
+
+```{r differing region}
+freq_count <- dplyr::count(freq_variation, Region)
+
+inter_count <- intersecting_wsafs %>% 
+  dplyr::count(Region) %>% 
+  dplyr::arrange(as.numeric(Region))
+
+which(freq_count$n != inter_count$n)
+```
+
+```{r differing samples}
+freq_name <- freq_variation %>% 
+  dplyr::filter(Region == 19) %>% 
+  dplyr::pull(name)
+
+inter_name <- intersecting_wsafs %>% 
+  dplyr::filter(Region == 19) %>% 
+  dplyr::pull(name)
+
+inter_name[(!inter_name %in% freq_name)]
+```
+
+## Understanding relationships
+
+```{r combine all the estimations}
+inter_bind <- intersecting_wsafs %>% 
+  dplyr::mutate(Region = as.numeric(Region)) %>% 
+  dplyr::rename(
+    dis_var_med = dis_var, 
+    dis_freq_med = dis_freq, 
+    cont_var_med = cont_var, 
+    cont_freq_med = cont_freq
+  )
+
+regional_bind <- regional_wsafs %>% 
+  dplyr::mutate(Region = as.numeric(Region)) %>% 
+  dplyr::rename(
+    dis_var_med = dis_var, 
+    dis_freq_med = dis_freq, 
+    cont_var_med = cont_var, 
+    cont_freq_med = cont_freq
+  )
+
+combined_data <- dplyr::bind_rows(
+  list(base = base_pf6, variation = freq_variation, inter = inter_bind, regional = regional_bind), 
+  .id = "dataset"
+)
+
+no_base_combined <- dplyr::bind_rows(
+  list(variation = freq_variation, inter = inter_bind, regional = regional_bind), 
+  .id = "dataset"
+)
+```
+
+Between estimation techniques.
+
+```{r relationship between techqiues}
+plot_bar <- function(data, col, xlab) {
+ ggplot(data, aes({{ col }}, fill = dataset)) +
+  geom_bar(position = "dodge") +
+  scale_fill_viridis_d() +
+  labs(x = xlab, y = "Count", fill = "Dataset") +
+  theme_coiaf()
+}
+
+plot_density <- function(data, col, xlab) {
+ ggplot(data, aes({{ col }}, fill = dataset)) +
+  geom_density() +
+  facet_wrap(~dataset) +
+  scale_fill_viridis_d() +
+  labs(x = xlab, y = "Density", fill = "Dataset") +
+  theme_coiaf()
+}
+
+pdv <- plot_bar(combined_data, dis_var_med, "Discrete Variant Method")
+pcv <- plot_density(combined_data, cont_var_med, "Continuous Variant Method")
+
+pdf <- plot_bar(no_base_combined, dis_freq_med, "Discrete Frequency Method")
+pcf <- plot_density(no_base_combined, cont_freq_med, "Continuous Frequency Method")
+
+pdv + pcv + pdf + pcf 
+```
+
+Compared to THE REAL McCOIL
+
+```{r rmcl examination}
+ggplot(
+  data = dplyr::filter(combined_data, rmcl_med != 25), 
+  mapping = aes(x = rmcl_med, y = dis_var_med, color = dataset)
+) +
+  facet_wrap(~dataset) +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_jitter(alpha = 0.5) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(size = "none") +
+  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10)) +
+  labs(title = "Variant Method", y = "coiaf Prediction")
+
+ggplot(
+  data = dplyr::filter(combined_data, rmcl_med != 25), 
+  mapping = aes(x = rmcl_med, y = dis_freq_med, color = dataset)
+) +
+  facet_wrap(~dataset) +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_jitter(alpha = 0.5) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(size = "none") +
+  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10)) +
+  labs(title = "Frequency Method", y = "coiaf Prediction")
+```
+
+## Isolating samples where we deviate from RMCL
+
+First find samples where RMCL predicts a high COI.
+
+```{r high coi samples}
+high_samples <- combined_data %>% 
+  dplyr::filter(dataset == "inter", rmcl_med > 5, rmcl_med != 25) %>% 
+  dplyr::select(name, Region)
+```
+
+Plot the sample
+
+```{r plot the sample}
+path <- "~/Desktop/Malaria/COI data/"
+rmcl_wsafs <- readRDS(paste0(path, "RMCL_wsafs_unique.rds"))
+
+purrr::walk(seq_len(nrow(high_samples)), function(i) {
+  if (i %% 9 == 1) {
+    pdf(paste0("base_samples_", i, ".pdf"))
+    par(mfrow = c(3, 3))
+  }
+  
+  sample_name <- high_samples$name[i]
+  sample_region <- high_samples$Region[i]
+  
+  # path <- "~/Desktop/Malaria/COI data/new-wsafs/intersecting-regions/"
+  # wsaf_matrix <- readRDS(paste0(path, glue::glue("region_{sample_region}.rds")))
+  
+  # Get region matrix
+  wsaf_matrix <- names(rmcl_wsafs) %>%
+    stringr::str_detect(stringr::str_c("cat_region_", sample_region, "_vcf_0")) %>%
+    purrr::keep(rmcl_wsafs, .)
+  wsaf_matrix <- wsaf_matrix[[1]]
+  
+  plaf <- colMeans(wsaf_matrix, na.rm = T)
+  wsaf <- wsaf_matrix[sample_name, ]
+  input <- tibble::tibble(wsaf = wsaf, plaf = plaf) %>% tidyr::drop_na()
+  input$plaf[input$plaf > 0.5] <- 1 - input$plaf[input$plaf > 0.5]
+  
+  # het_data <- dplyr::filter(input, wsaf > 0 & wsaf < 1)
+  plot(input$plaf, input$wsaf, main = sample_name)
+  
+  # Compute windowed averages
+  df_grouped <- process_real(
+    input$wsaf, input$plaf, 
+    bin_size = 50, 
+    coi_method = "frequency"
+  )
+
+  # What was the seq error?
+  df_grouped$seq_error
+  
+  # Add average to plot
+  lines(df_grouped$data$midpoints, df_grouped$data$m_variant,
+    col = "blue", lwd = 2, type = "o", pch = 20
+  )
+  
+  
+  if (i %% 9 == 0 | i == nrow(high_samples)) dev.off()
+})
+
+# dplyr::filter(combined_data, name == sample_name, Region == sample_region)
+```
+
+
