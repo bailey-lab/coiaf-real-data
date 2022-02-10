@@ -23,7 +23,6 @@ run_method <- function(sample_name, input, fn, coi_method) {
       data = input,
       data_type = "real",
       coi_method = coi_method,
-      seq_error = 0.01,
       bin_size = 50
     ),
     error = function(e) {
@@ -41,7 +40,7 @@ coi <- lapply(
   function(i) {
     sample_name <- rownames(wsaf_matrix)[i]
     wsaf <- wsaf_matrix[i, ]
-    input <- tibble::tibble(wsaf = wsaf, plaf = plaf) %>% tidyr::drop_na()
+    input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
 
     dis_var <- run_method(sample_name, input, "compute_coi", "variant")
     dis_freq <- run_method(sample_name, input, "compute_coi", "frequency")
