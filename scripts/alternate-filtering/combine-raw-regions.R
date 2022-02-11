@@ -15,7 +15,7 @@ predictions <- purrr::map(
   dplyr::mutate(Region = stringr::str_extract(data_file, "\\d+"))
 
 # Assign a unique name to the data
-data_name <- "intersecting_wsafs_0.01_error"
+data_name <- "regional_wsafs"
 
 # Save data
 saveRDS(
