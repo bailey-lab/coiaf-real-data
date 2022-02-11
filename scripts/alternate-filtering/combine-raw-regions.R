@@ -3,9 +3,6 @@ library(coiaf)
 # Declare file location
 here::i_am("scripts/alternate-filtering/combine-raw-regions.R")
 
-# Path to data
-path <- "~/Desktop/Malaria/COI data/new-wsafs/intersecting-regions/"
-
 # Combine data
 predictions <- purrr::map(
   seq(24),
@@ -15,7 +12,7 @@ predictions <- purrr::map(
   dplyr::mutate(Region = stringr::str_extract(data_file, "\\d+"))
 
 # Assign a unique name to the data
-data_name <- "regional_wsafs"
+data_name <- "example_name"
 
 # Save data
 saveRDS(
