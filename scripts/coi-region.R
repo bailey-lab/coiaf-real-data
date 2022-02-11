@@ -81,7 +81,7 @@ raw_predictions <- lapply(
     coi_region <- lapply(seq_len(nrow(sample)), function(i) {
       sample_name <- rownames(sample)[i]
       wsaf <- sample[i, ]
-      input <- tibble::tibble(wsaf = wsaf, plaf = plaf) %>% tidyr::drop_na()
+      input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
 
       dis_var <- run_method(sample_name, input, "compute_coi", "variant")
       dis_freq <- run_method(sample_name, input, "compute_coi", "frequency")
