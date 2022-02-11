@@ -7,7 +7,6 @@ here::i_am("scripts/alternate-filtering/coi-region.R")
 path <- "~/Desktop/Malaria/COI data/new-wsafs/"
 
 # Declare a variable region, which will dictate what region we are looking at
-# region = 12
 cli::cli_inform("Running region {region}")
 
 # Read in the real data
@@ -22,8 +21,7 @@ run_method <- function(sample_name, input, fn, coi_method) {
       fn,
       data = input,
       data_type = "real",
-      coi_method = coi_method,
-      bin_size = 50
+      coi_method = coi_method
     ),
     error = function(e) {
       rlang::inform(glue::glue("Error for sample { sample_name }"))
