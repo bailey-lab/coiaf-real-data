@@ -145,13 +145,50 @@ plot_density <- function(data, col, xlab) {
   theme_coiaf()
 }
 
-pdv <- plot_bar(combined_data, dis_var_med, "Discrete Variant Method")
-pcv <- plot_density(combined_data, cont_var_med, "Continuous Variant Method")
+method_comparison <- function(data) {
+  pdv <- plot_bar(data, dis_var_med, "Discrete Variant Method")
+  pcv <- plot_density(data, cont_var_med, "Continuous Variant Method")
 
-pdf <- plot_bar(no_base_combined, dis_freq_med, "Discrete Frequency Method")
-pcf <- plot_density(no_base_combined, cont_freq_med, "Continuous Frequency Method")
+  pdf <- plot_bar(data, dis_freq_med, "Discrete Frequency Method")
+  pcf <- plot_density(data, cont_freq_med, "Continuous Frequency Method")
+  
+  pdv + pcv + pdf + pcf + plot_layout(guides = "collect")
+}
 
-pdv + pcv + pdf + pcf 
+rmcl_helper <- function(data, col) {
+  title <- switch(col,
+    dis_var_med = "Discrete Variant Method",
+    dis_freq_med = "Discrete Frequency Method",
+    cont_var_med = "Continuous Variant Method",
+    cont_freq_med = "Continuous Frequency Method"
+  )
+  
+  ggplot(data, aes(x = rmcl_med, y = .data[[col]], color = dataset)) +
+    facet_wrap(~dataset) +
+    geom_abline(color = "gray", size = 0.5) +
+    geom_jitter(alpha = 0.5) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(), 
+      plot.title = element_text(hjust = 0.5, size = 12), 
+      legend.title = element_text(size = 12), 
+      legend.position = "right"
+    ) +
+    guides(size = "none") +
+    scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10)) +
+    labs(title = title, y = "coiaf Prediction", color = "Dataset")
+}
+
+rmcl_comparison <- function(data) {
+  data = dplyr::filter(data, rmcl_med != 25)
+  
+  rmcl_helper(data, "dis_var_med") + 
+    rmcl_helper(data, "dis_freq_med") +
+    rmcl_helper(data, "cont_var_med") +
+    rmcl_helper(data, "cont_freq_med") + 
+    plot_layout(guides = "collect")
+}
+```
 ```
 
 Compared to THE REAL McCOIL
