@@ -54,8 +54,10 @@ regions <- names(rmcl_wsafs) %>%
   stringr::str_extract("region_[:digit:]+") %>%
   unique()
 
-# Set the region we want to examine
-curr_region <- regions[1]
+# Declare a global variable region, which will dictate what region we are
+# looking at
+cli::cli_inform("Running region {region}")
+curr_region <- glue::glue("region_{ region }")
 
 # Find all wsafs for each region
 rmcl_region <- names(rmcl_wsafs) %>%
