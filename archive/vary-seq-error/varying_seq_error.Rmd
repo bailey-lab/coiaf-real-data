@@ -40,8 +40,9 @@ together.
 purrr::map_dfr(
   c(seq_0_01 = "0_01", seq_0_02 = "0_02", seq_0_03 = "0_03", seq_0_05 = "0_05"),
   ~ readRDS(here::here(
-    "data-outputs",
+    "archive",
     "vary-seq-error",
+    "fixed-error",
     glue::glue("full_seq_error_{ .x }.rds")
   )),
   .id = "seq_error"
