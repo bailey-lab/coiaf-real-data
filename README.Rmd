@@ -9,7 +9,7 @@ csl: references/plos-computational-biology.csl
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = ""
 )
 ```
 
@@ -31,5 +31,14 @@ from 28 malaria-endemic countries in Africa, Asia, South America, and Oceania
 from 2002-2015. Detailed information about the data release including brief
 descriptions of contributing partner studies and study locations is available in
 the supplementary of MalariaGEN *et al.*.
+
+## Project Structure
+
+```{r proj structure, echo = FALSE}
+fs::dir_tree(
+  regexp = "renv.*|library|.*figures|archive|.*Rproj|.*E.R?md|.*html|data-outputs/vary-seq-error/*|references", 
+  invert = TRUE
+)
+```
 
 ## References
