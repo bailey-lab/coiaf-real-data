@@ -6,7 +6,7 @@ to generate the data for running THE REAL McCOIL has an LD filtering step. In
 initial anlyses of the Pf6 data, we examined data after having filtered for LD,
 however, we later realized that without filtering for LD we will be able to
 examine many more loci. Furthermore, as LD filtering is not needed for coiaf, we
-choose to generate new data where we had not done LD filtering. 
+choose to generate new data where we had not done LD filtering.
 
 The files stored in this folder were used when we were using LD filtered data.
 
