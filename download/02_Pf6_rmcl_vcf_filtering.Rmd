@@ -25,7 +25,7 @@ This script will:
 2. Filter to quality, biallelic SNPs
 3. Subset to samples that pass Pf6k inclusion
 4. Identify suitable subregions to group samples into 
-5. Identify loci that have MAF > 0.05 globally and regionally
+5. Identify loci that have MAF > 0.01 globally and MAF > 0.05 regionally
 6. Filter to sets of loci that are not in linkage disequilbirium
 7. Resultant loci are converted into homo/het calls
 8. Homo/het calls for each region are sent to RMCL for COI
@@ -213,7 +213,7 @@ greater than 0.01.
 
 ```{r}
 # frequency filter
-bcf_allele_frequency <- function(vcf, minor = 0.005) {
+bcf_allele_frequency <- function(vcf, minor = 0.01) {
   bcft(paste0("view -O z -q ", minor, ":alt1 "), vcf)
 }
 
@@ -222,7 +222,7 @@ l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
 
 # submit filter
-pars <- data.frame("vcf" = l, "minor" = 0.005, stringsAsFactors = FALSE)
+pars <- data.frame("vcf" = l, "minor" = 0.01, stringsAsFactors = FALSE)
 sopt <- list(time = "4:00:00", mem = "16Gb")
 
 setwd(slurm_dir)
@@ -464,7 +464,7 @@ for (i in seq_len(length(unique(meta$k_cluster)))) {
   for (j in seq_len(length(l))) {
     obj_list[[count]]$samples <- samples
     obj_list[[count]]$vcf <- l[j]
-    obj_list[[count]]$minor <- 0.005
+    obj_list[[count]]$minor <- 0.05
     count <- count + 1
   }
 }
@@ -512,7 +512,7 @@ for (i in seq_len(length(l))) {
   for (j in 1:24) {
     intersects[[i]][[j]] <- names(which(count >= (j)))
   }
-x}
+}
 
 # plot the fall of loci with regions
 inclusions <- data.frame(
@@ -675,17 +675,27 @@ saveRDS(newvcfR, vcf_rds)
 We can now filter to create subsets that are not in LD. 
 
 ```{r}
+# Get the VCFs
+l <- list.files(filter_dir, full.names = TRUE)
+l <- grep("final_coi", l, value = TRUE)
+
+# Output file
+O <- gsub("_01_v3", "", l[1])
+
 # read in our final VCF
 vcfRobj <- vcfR::read.vcfR(O)
 
 # calculate autocorrelation
 gen <- vcfRmanip::genautocorr(vcfR = vcfRobj)
-gen_rds <- paste0(home_dir, "derived/gen.rds")
+gen_rds <- paste0(home_dir, "snp_selections/gen.rds")
 saveRDS(gen, gen_rds)
+
+# Read rds file paths
+gen_rds <- paste0(home_dir, "snp_selections/gen.rds")
+vcf_rds <- paste0(home_dir, "snp_selections/vcf_final.rds")
 
 # Create subsets
 # --------------------------
-gen <- readRDS(gen_rds)
 # LD filter wrapped
 ld_filter <- function(vcfRobj_rds, genauto_rds, threshR2 = 0.8, random = TRUE) {
   vcfRobj <- readRDS(vcfRobj_rds)
@@ -729,7 +739,7 @@ Now that we have suitable datasets we need to split them up into their regions
 and then create our heterozygous calls for putting into RMCL
 
 ```{r}
-# function to load vcf and siubset to samples in given region, create gt and then RMCL
+# function to load vcf and subset to samples in given region, create gt and then RMCL
 submit_rmcl <- function(rep, vcf_rds, region, meta_df, path) {
 
   # read in the vcf
