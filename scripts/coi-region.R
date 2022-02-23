@@ -1,17 +1,18 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/alternate-filtering/coi-region.R")
+here::i_am("scripts/coi-region.R")
 
 # Path to data
-path <- "~/Desktop/Malaria/COI data/new-wsafs/"
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 
 # Declare a variable region, which will dictate what region we are looking at
 cli::cli_inform("Running region {region}")
 
 # Read in the real data
 data_file <- glue::glue("wsaf_reg_{ region }.rds")
-wsaf_matrix <- readRDS(paste0(path, data_file))$wsaf_cleaned
+wsaf_matrix <- readRDS(paste0(path, data_file))$wsaf
+coverage_matrix <- readRDS(paste0(path, data_file))$coverage
 plaf <- colMeans(wsaf_matrix, na.rm = T)
 
 # Function for running methods
@@ -21,6 +22,8 @@ run_method <- function(sample_name, input, fn, coi_method) {
       fn,
       data = input,
       data_type = "real",
+      seq_error = 0.01,
+      bin_size = 50,
       coi_method = coi_method
     ),
     error = function(e) {
@@ -38,7 +41,9 @@ coi <- lapply(
   function(i) {
     sample_name <- rownames(wsaf_matrix)[i]
     wsaf <- wsaf_matrix[i, ]
-    input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
+    coverage <- coverage_matrix[i, ]
+    input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf, coverage = coverage) %>%
+      tidyr::drop_na()
 
     dis_var <- run_method(sample_name, input, "compute_coi", "variant")
     dis_freq <- run_method(sample_name, input, "compute_coi", "frequency")

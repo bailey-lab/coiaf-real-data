@@ -1,5 +1,8 @@
+# Declare file location
+here::i_am("scripts/data-dimensions.R")
+
 # Path to data
-path <- "~/Desktop/Malaria/COI data/new-wsafs/"
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 
 # Read in the real data and determine number of samples and loci per region
 data_dims <- purrr::map_dfr(

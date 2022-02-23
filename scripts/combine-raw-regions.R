@@ -1,7 +1,7 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/alternate-filtering/combine-raw-regions.R")
+here::i_am("scripts/combine-raw-regions.R")
 
 # Combine data
 predictions <- purrr::map(
