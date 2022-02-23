@@ -42,9 +42,11 @@ purrr::walk(seq(24), function(i) {
 A brief description of each script can be found below:
 
 - `coi-region`: computes the COI of each sample in each region.
-- `vary-seq-error`: computes the COI of each sample in each region by varying
-  over the sequencing error parameter.
 - `combine-raw-regions.R`: takes the estimated COI for each region and combines
   the estimations into data objects. These data objects are saved in the
   [data-outputs
   folder](https://github.com/bailey-lab/coiaf-real-data/tree/main/data-outputs).
+- `rmcl-estimation.R`: extracts THE REAL McCOIL estimations and saves the `.rds`
+  file in the [data-outputs
+  folder](https://github.com/bailey-lab/coiaf-real-data/tree/main/data-outputs).
+- `data-dimensions.R`: determines the number of samples and loci in each region.
