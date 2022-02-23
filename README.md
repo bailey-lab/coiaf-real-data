@@ -37,9 +37,10 @@ al.*.
     │   ├── regional_wsafs.rds
     │   └── rmcl_estimation.rds
     ├── download
-    │   ├── 00_Pf6k_vcf_download_loci_selection_and_RMCL.Rmd
-    │   ├── 00_alternative_Pf6k_vcf_download_loci_selection.rmd
-    │   └── 01_Pf6k_WSAF_creation_for_coiaf.Rmd
+    │   ├── 00_Pf6_vcf_filtering.Rmd
+    │   ├── 01_create_coiaf_inputs.Rmd
+    │   ├── 02_Pf6_rmcl_vcf_filtering.Rmd
+    │   └── 03_rmcl_results.Rmd
     ├── metadata
     │   ├── pf6_meta.Rmd
     │   └── pf6_meta.rds
@@ -48,6 +49,7 @@ al.*.
         ├── alternate-filtering
         │   ├── coi-region.R
         │   ├── combine-raw-regions.R
+        │   ├── data-dimensions.R
         │   └── split-file.R
         ├── coi-region.R
         ├── combine-raw-regions.R
