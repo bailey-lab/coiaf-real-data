@@ -1,5 +1,5 @@
 ---
-title: "Creating Pf6k complete SNPs for RMCL"
+title: "Filtering Pf6 VCFs"
 author: "OJ Watson, Aris Paschalidis"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
@@ -49,7 +49,6 @@ This script will:
 4. Identify loci that have MAF > 0.005 globally and regionally
 5. Identify suitable subregions to group samples into 
 7. Prepare VCFs for each subregion
-9. Extract key data for coiaf
 
 Note that given the size of the data objects and VCF files, we recommend running
 this download script using a high performance computing cluster. If doing so,
@@ -947,76 +946,4 @@ for (j in (1:24)) {
 newvcfR <- vcfR::read.vcfR(gsub("//", "/", O))
 saveRDS(newvcfR, vcf_rds)
 }
-```
-
-## Create COIAF inputs
-
-```{r create coiaf inputs}
-# Find files
-l <- grep(
-  "vcf", 
-  list.files(paste0(home_dir, "snp_selections"), full.names = TRUE), 
-  value = TRUE
-)
-
-wsaf_out_func <- function(x) {
-  vcfRobj <- readRDS(x)
-  if (is.list(vcfRobj)) {
-    vcfRobj <- vcfRobj[[1]]
-  }
-
-  # 1. create gt
-  gtmat <- vcfRmanip::gtmat012(vcfRobj) / 2
-  gtmat[is.na(gtmat)] <- -1
-  gtmat <- t(gtmat)
-  colnames(gtmat) <- paste0(vcfRobj@fix[, "CHROM"], "_", vcfRobj@fix[, "POS"])
-
-  # 2. create wsaf
-  # extract coverage and counts matrices
-  coverage <- t(vcfR::extract.gt(vcfRobj, element = "DP", as.numeric = T))
-  counts_raw <- t(vcfR::extract.gt(vcfRobj, element = "AD"))
-  counts <- vcfR::masplit(counts_raw, record = 1, sort = FALSE, decreasing = FALSE)
-  wsaf <- counts / coverage
-
-  # 3. create gt cleaned wsaf
-  wsaf_new <- wsaf
-  wsaf_new[(gtmat == 0)] <- 1
-  wsaf_new[(gtmat == 1)] <- 0
-
-  out <- list(
-    "wsaf" = wsaf, 
-    "wsaf_cleaned" = wsaf_new, 
-    "coverage" = coverage, 
-    "gt" = gtmat
-  )
-  saveRDS(out, gsub("vcf_final", "wsaf", x))
-}
-```
-
-```{r slurm coiaf, eval = use_slurm}
-# Use slurm
-setwd(slurm_dir)
-sopt <- list(time = "4:00:00", mem = "16Gb")
-
-# submit jobs
-sjob <- rslurm::slurm_apply(
-  wsaf_out_func,
-  params = data.frame(x = l),
-  global_objects = c("wsaf_out_func"),
-  jobname = "wsaf_creation",
-  nodes = length(l),
-  cpus_per_node = 1,
-  slurm_options = sopt,
-  submit = TRUE
-)
-
-rslurm::get_job_status(sjob)
-res <- rslurm::get_slurm_out(sjob)
-```
-
-```{r parallel coiaf, eval = use_parallel}
-# Use parallel processing
-cl <- makeCluster(14)
-out <- mclapply(X = l, wsaf_out_func, mc.cores = 14)
-stopCluster(cl)
 ```
