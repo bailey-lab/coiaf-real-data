@@ -38,13 +38,13 @@ This script will:
 home_dir <- "/gpfs/data/jbailey5/apascha1/"
 
 # Directory where we will do our filtering and subsetting etc
-filter_dir <- paste0(home_dir, "pf_release6_COI_filtering/")
+filter_dir <- paste0(home_dir, "pf_release6_COI_filtering")
 
 # Directory where we will download the Pf 6 samples to
-sample_dir <- paste0(home_dir, "pf_release6/")
+sample_dir <- paste0(home_dir, "pf_release6")
 
 # Directory for slurm outputs
-slurm_dir <- paste0(home_dir, "slurm_outs/")
+slurm_dir <- paste0(home_dir, "slurm_outs")
 ```
 
 ## Download the files
@@ -100,7 +100,7 @@ sopt <- list(time = "1:00:00")
 setwd(slurm_dir)
 
 sjob <- rslurm::slurm_apply(bcf_filter, pars,
-  jobname = "test_filter",
+  jobname = "zhu_filter",
   nodes = 14, cpus_per_node = 1, slurm_options = sopt,
   submit = TRUE
 )
@@ -161,9 +161,10 @@ bcf_sample_subset <- function(samples, file, outfile, cmd_only) {
 
 # what files are we working with
 l <- list.files(
-  paste0(home_dir, "pf_release6_filter_zhu_elife/"), 
+  paste0(home_dir, "pf_release6_filter_zhu_elife"), 
   full.names = TRUE
 )
+l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
 
 # we are going to a series of filters that don't take long to run so let's
 # create a new directory to store these in and we will overwrite each time now
@@ -212,15 +213,16 @@ greater than 0.01.
 
 ```{r}
 # frequency filter
-bcf_allele_frequency <- function(vcf, minor = 0.01) {
+bcf_allele_frequency <- function(vcf, minor = 0.005) {
   bcft(paste0("view -O z -q ", minor, ":alt1 "), vcf)
 }
 
 # files in out new directory
 l <- list.files(filter_dir, full.names = TRUE)
+l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
 
 # submit filter
-pars <- data.frame("vcf" = l, "minor" = 0.01, stringsAsFactors = FALSE)
+pars <- data.frame("vcf" = l, "minor" = 0.005, stringsAsFactors = FALSE)
 sopt <- list(time = "4:00:00", mem = "16Gb")
 
 setwd(slurm_dir)
@@ -437,7 +439,7 @@ sample_maf_subset_count <- function(samples, minor = 0.05, vcf) {
   tf <- tempfile()
   writeLines(samples, tf_s)
 
-  system(paste(
+  system(paste("module load bcftools/1.9;",
     "bcftools view -S ",
     tf_s, vcf,
     paste0("| bcftools view -q ", minor, ":alt1", collapse = ""),
@@ -449,8 +451,8 @@ sample_maf_subset_count <- function(samples, minor = 0.05, vcf) {
 }
 
 # build parameter obj list
-l <- list.files(new_dir, full.names = TRUE)
-l <- l[-grep("loci$", l)]
+l <- list.files(filter_dir, full.names = TRUE)
+l <- grep("final.vcf.gz", l, value = TRUE)
 
 obj_list <- vector(
   mode = "list", 
@@ -462,7 +464,7 @@ for (i in seq_len(length(unique(meta$k_cluster)))) {
   for (j in seq_len(length(l))) {
     obj_list[[count]]$samples <- samples
     obj_list[[count]]$vcf <- l[j]
-    obj_list[[count]]$minor <- 0.05
+    obj_list[[count]]$minor <- 0.005
     count <- count + 1
   }
 }
@@ -510,7 +512,7 @@ for (i in seq_len(length(l))) {
   for (j in 1:24) {
     intersects[[i]][[j]] <- names(which(count >= (j)))
   }
-}
+x}
 
 # plot the fall of loci with regions
 inclusions <- data.frame(
@@ -592,9 +594,9 @@ loci_subset <- function(loci, vcf, chrom, vcfout) {
 }
 
 # samples to be filtered
-intersect_snps <- readRDS(paste0(home_dir, "derived/intercept_snps_0.01.rds"))
+intersect_snps <- readRDS(paste0(home_dir, "snp_selections/intersect_snps_0.005.rds"))
 
-l <- list.files(new_dir, full.names = TRUE)
+l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("vcf.gz", l, value = TRUE, fixed = TRUE)
 
 # create obj list
@@ -666,7 +668,7 @@ newvcfR <- new("vcfR", meta = meta, fix = fixs, gt = gts)
 
 ## write the vcf to file as well as the rds
 vcfR::write.vcf(newvcfR, O)
-vcf_rds <- paste0(home_dir, "derived/vcf_final.rds")
+vcf_rds <- paste0(home_dir, "snp_selections/vcf_final.rds")
 saveRDS(newvcfR, vcf_rds)
 ```
 

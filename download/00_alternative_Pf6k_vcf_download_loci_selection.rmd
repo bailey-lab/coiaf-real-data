@@ -1,6 +1,6 @@
 ---
 title: "Creating Pf6k complete SNPs for RMCL"
-author: "OJ Watson"
+author: "OJ Watson, Aris Paschalidis"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -12,117 +12,161 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r imports, echo=F, warning=F, message=F, results='hide'}
+```{r setup, echo = FALSE}
+# Here, we set default options for our markdown file
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
 library(tidyverse)
 library(RColorBrewer)
-library(devtools)
 library(here)
 library(rslurm)
 library(vcfR)
-devtools::install_github("OJWatson/McCOILR")
+library(parallel)
+
+# If the download is used on a network which requires loading bcftools via
+# modules, set the boolean to TRUE. Otherwise, set to FALSE.
+load_bcftools_bool = TRUE
+if (load_bcftools_bool) {
+  load_bcftools <- "module load bcftools/1.9; "
+} else {
+  load_bcftools <- ""
+}
+
+# A boolean to indicate whether jobs will be submitted via slurm or run using
+# parallel processing
+use_slurm = TRUE
+use_parallel = !use_slurm
 ```
 
 This script will:
 
-1. Download the Pf6k VCFs
-2. Filter to quality, biallelic SNPs
+1. Download the Pf6 VCFs
+2. Filter to high quality, biallelic SNPs
 3. Subset to samples that pass Pf6k inclusion
-4. Identify suitable subregions to group samples into 
-5. Identify loci that have MAF > 0.005 globally and regionally
-6. Filter to sets of loci that are not in linkage disequilbirium
-7. Resultant loci are converted into homo/het calls
-8. Homo/het calls for each region are sent to RMCL for COI
-9. Summary estimates of COI are estimated for each sample
+4. Identify loci that have MAF > 0.005 globally and regionally
+5. Identify suitable subregions to group samples into 
+7. Prepare VCFs for each subregion
+9. Extract key data for coiaf
 
-## Locations to download and filter
+Note that given the size of the data objects and VCF files, we recommend running
+this download script using a high performance computing cluster. If doing so,
+several steps in this download file can be submitted to slurm, a cluster
+management and job scheduling system. However, users may also run steps in this
+file using parallel processing. For most steps in this file, there are two code
+chunks that can be used interchangeably for running jobs, one for slurm and one
+for parallel processing.
 
-```{r}
-# where we will do out filtering and subsetting etc
-new_dir <- "analysis/data/vcfs/pf3k_release6_COI_filtering/"
+```{r define directories, echo = FALSE}
+# Directory which contains the sub directories
+home_dir <- "/gpfs/data/jbailey5/apascha1/"
 
-# where we will download the 6k samples to once
-share_dir <- "analysis/data/vcfs/pf3k_release6"
+# Directory where we will do our filtering and subsetting etc
+filter_dir <- paste0(home_dir, "pf_release6_COI_filtering")
+
+# Directory where we will download the Pf 6 samples to
+sample_dir <- paste0(home_dir, "pf_release6")
+
+# Directory for slurm outputs
+slurm_dir <- paste0(home_dir, "slurm_outs")
 ```
 
-## Download the files
+## Download Pf6 VCFs
 
-```{r imports, echo=F, warning=F, message=F, results='hide'}
+```{r imports, eval = FALSE}
 ftp_dir <- "ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_vcf/Pf_6_vcf"
 
-## Grab the filenames from the ftp address
-filenames <- RCurl::getURL(ftp_dir, ftp.use.epsv = FALSE, dirlistonly = TRUE) %>%
+# Grab the filenames from the ftp address
+filenames <- RCurl::getURL(
+  ftp_dir, 
+  ftp.use.epsv = FALSE, 
+  dirlistonly = TRUE
+) %>%
   strsplit("\n") %>%
   unlist()
 
-## create urls and download to shared directory
+# Create urls and download to directory
+# We recommend using an external ftp tool as the server can be finicky at times
+# and these commands may change depending on the directory structure
 urls <- file.path(ftp_dir, filenames)
-
-## group_share
-# DOING THIS EXTERNAL THROUGH FTP AS CAN@T FIGURE THER SERVER OUT
-# dir.create(share_dir, recursive = TRUE)
-# current_dir <- setwd(share_dir)
-# curl::curl_fetch_disk(urls[1], basename(urls[1]), )
-# system(paste0("wget -r -nH --cut-dirs=6 ", ftp_dir))
-# setwd(current_dir)
+dir.create(sample_dir, recursive = TRUE)
+current_dir <- setwd(sample_dir)
+curl::curl_fetch_disk(urls[1], basename(urls[1]), )
+system(paste0("wget -r -nH --cut-dirs=5 ", ftp_dir))
+setwd(current_dir)
 ```
 
 ## Filter the vcfs
 
-Filter the Pf6k samples with the following filters used in Zhu et al. [The origins and relatedness structure of mixed infections vary with local prevalence of P. falciparum malaria
-][https://elifesciences.org/articles/40845]. We'l save these in share as this filter will be used a lot in the future for isolating SNPs for Fst between countries etc, so we can start from Zhu.
+Filter the Pf6 samples with the following filters used in Zhu et al. [The
+origins and relatedness structure of mixed infections vary with local prevalence
+of P. falciparum malaria ][https://elifesciences.org/articles/40845].
 
-```{r}
-
-bcf_filter <- function(x, 
-                       dir = "/gpfs_home/owatson1/data/shared/vcfs/pf3k_release6"){
-  
+```{r filter vcfs}
+bcf_filter <- function(x, dir) {
+  # Add 0 to file names for chromosomes 1:9
   if (x < 10) {
     x <- paste0("0", x)
   }
   
   l <- list.files(dir, full.names = TRUE)
   s <- grep(paste0("Pf3D7_",x,"_.*vcf.gz$"), l, value = TRUE)
-  t <- gsub("pf3k_release6", "pf3k_release6_filter_zhu_elife", s)
+  t <- gsub("pf_release6", "pf_release6_filter_zhu_elife", s)
   dir.create(dirname(t), recursive = TRUE, showWarnings = FALSE)
   
-  # filter to sites that include the expression FILTER="PASS", and to sites that are biallelic (at least
-  # 2 alleles (-m 2) and a maximum of 2 (-M 2)) and are SNPs
-  cmd <- paste0("bcftools view -i 'FILTER=\"PASS\"' -m 2 -M 2 -v snps -O z \"",s, "\" > \"", t, "\"")
+  # Filter to sites that include the expression FILTER="PASS", and to sites that
+  # are biallelic (at least 2 alleles (-m 2) and a maximum of 2 (-M 2)) and are
+  # SNPs
+  cmd <- paste0(
+    load_bcftools,
+    "bcftools view -i 'FILTER=\"PASS\"' -m 2 -M 2 -v snps -O z \"", 
+    s, 
+    "\" > \"", 
+    t, 
+    "\""
+  )
   system(command = cmd)
-  
 }
 
-# submit vcffilters
-pars <- data.frame("x" = 1:14, "dir" = share_dir)
+# Submit vcf filters
+pars <- data.frame("x" = 1:14, "dir" = sample_dir)
+```
 
-# turn parallel and run overnight
-library(parallel)
+```{r slurm filter vfs, eval = use_slurm}
+# Use slurm
+sopt <- list(time = "1:00:00")
+setwd(slurm_dir)
+
+sjob <- rslurm::slurm_apply(bcf_filter, pars,
+  jobname = "zhu_filter",
+  nodes = 14, cpus_per_node = 1, slurm_options = sopt,
+  submit = TRUE
+)
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel filter vfs, eval = use_parallel}
+# Use parallel processing
 cl <- makeCluster(detectCores())
-out <- mclapply(X = seq_along(pars$x)[-1], FUN = function(x){bcf_filter(pars$x[x], pars$dir[x])}, mc.cores = 13)
+out <- mclapply(X = seq_along(pars$x)[-1], FUN = function(x) {
+  bcf_filter(pars$x[x], pars$dir[x])
+}, mc.cores = 13)
 stopCluster(cl)
 ```
 
 ## Drop samples that don't pass quality control 
 
-The samples in Pf7k are annotated in terms of whether they were included for further analysis or not. If they were not included it is usually due to poor read coverage or being lab samples We'll remove these before moving on.
+The samples in Pf7k are annotated in terms of whether they were included for
+further analysis or not. If they were not included it is usually due to poor
+read coverage or being lab samples. We'll remove these before moving on.
 
-```{r}
-
-# get the Pf6k sample meta
-tf <- tempfile()
-download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",tf)
-meta <- data.table::fread(tf)
-
-# samples to keep
-samples <- meta$Sample[meta$`Exclusion reason` == "Analysis_set"]
-
-# bcftools function for ease
+```{r helper bcftools function, echo = FALSE}
+# Define a bcftools function for ease
 bcft <- function(query, file, outfile = NULL, cmd_only = FALSE) {
-  
-  # m <- "module load bcftools/1.9;"
-  m <- ""
-  
-  # write to outfile or otherwrite original 
+  # Write to outfile or otherwise write original
   if (!is.null(outfile)) {
     file <- paste(file, ">", outfile)
   } else {
@@ -130,217 +174,320 @@ bcft <- function(query, file, outfile = NULL, cmd_only = FALSE) {
     outfile <- tf
     file <- paste(file, ">", outfile)
   }
-  
-  cmd <- paste(m, "bcftools", paste(query, collapse = " "), file)
-  
-  if(cmd_only) {
+
+  cmd <- paste(load_bcftools, "bcftools", paste(query, collapse = " "), file)
+
+  if (cmd_only) {
     return(cmd)
   } else {
     system(cmd)
     return(outfile)
   }
-  
 }
+```
 
-# wrapper for filtering by samples
+```{r drop samples}
+# Get the Pf6k sample meta
+tf <- tempfile()
+download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt", tf)
+meta <- data.table::fread(tf)
+
+# Samples to keep
+samples <- meta$Sample[meta$`Exclusion reason` == "Analysis_set"]
+
+# Wrapper for filtering by samples
 bcf_sample_subset <- function(samples, file, outfile, cmd_only) {
-  
   tf <- tempfile()
   writeLines(samples, tf)
-  
-  bcft(query = c("view -O z -S", tf),
-       file = file, 
-       outfile = outfile, 
-       cmd_only = cmd_only)
-  
+
+  bcft(
+    query = c("view -O z -S", tf),
+    file = file,
+    outfile = outfile,
+    cmd_only = cmd_only
+  )
 }
 
-# what files are we working with
-
-l <- list.files(file.path(dirname(share_dir), "pf3k_release6_filter_zhu_elife"), full.names = TRUE)
+# Find the files we are working with
+l <- list.files(
+  paste0(home_dir, "pf_release6_filter_zhu_elife"), 
+  full.names = TRUE
+)
 l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
 
-# we are going to a series of filters that don't take long to run so let's create a 
-# new directory to store these in and we will overwrite each time now to save space
-new_dir <- file.path(dirname(share_dir), "pf3k_release6_COI_filtering_redo")
-dir.create(new_dir)
+# We are going to use a series of filters that don't take long to run so let's
+# create a new directory to store these in and we will overwrite each time now
+# to save space
+dir.create(filter_dir)
 
-# build out parameter list
+# Build parameter list
 obj_list <- list()
-for(i in seq_along(l)) {
-  obj_list[[i]] <- list(samples = samples, 
-                        file = l[i], 
-                        outfile = file.path(new_dir, basename(l[i])),
-                        cmd_only = FALSE)
+for (i in seq_along(l)) {
+  obj_list[[i]] <- list(
+    samples = samples,
+    file = l[i],
+    outfile = file.path(filter_dir, basename(l[i])),
+    cmd_only = FALSE
+  )
 }
+```
 
-# turn parallel and run overnight
-library(parallel)
+```{r slurm drop samples, eval = use_slurm}
+# Use slurm
+sopt <- list(time = "4:00:00", mem = "16Gb")
+setwd(slurm_dir)
+sjob <- rslurm::slurm_apply(
+  f = function(i) {
+    bcf_sample_subset(
+      samples = obj_list[[i]]$samples,
+      file = obj_list[[i]]$file,
+      outfile = obj_list[[i]]$outfile,
+      cmd_only = obj_list[[i]]$cmd_only
+    )
+  },
+  params = data.frame(i = seq_along(obj_list)),
+  global_objects = c("bcf_sample_subset", "bcft", "obj_list"),
+  jobname = "exclusion_drops",
+  nodes = 14,
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+
+```{r parallel drop samples, eval = use_parallel}
+# Use parallel processing
 cl <- makeCluster(detectCores())
-out <- mclapply(X = seq_along(obj_list), FUN = function(i){
-
+out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
   bcf_sample_subset(
-  samples = obj_list[[i]]$samples,
-  file = obj_list[[i]]$file,
-  outfile = obj_list[[i]]$outfile,
-  cmd_only = obj_list[[i]]$cmd_only
+    samples = obj_list[[i]]$samples,
+    file = obj_list[[i]]$file,
+    outfile = obj_list[[i]]$outfile,
+    cmd_only = obj_list[[i]]$cmd_only
   )
 }, mc.cores = 14)
 stopCluster(cl)
-
-
 ```
 
 ## Select intermediate frequency and high quality SNPs
 
-We'll continue by subsetting to the SNPs that have a minor allele frequency greater than 0.005.
+We'll continue by subsetting to the SNPs that have a minor allele frequency
+greater than 0.005.
 
-```{r}
-
-# frequency filter
-bcf_allele_frequency <- function(vcf, minor = 0.005) {
-  
-  # outvcf <- gsub(".vcf.gz", "maf_filter.vcf.gz", vcf, fixed = TRUE)
-  bcft(paste0("view -O z -q ",minor,":alt1 "), vcf)
-  
+```{r minor freq}
+# Define frequency filter function
+bcf_allele_frequency <- function(vcf, minor = 0.005, use_slurm = TRUE) {
+  bcft(paste0("view -O z -q ", minor, ":alt1 "), vcf, use_slurm = use_slurm)
 }
 
-# files in out new directory
-l <- list.files(new_dir, full.names = TRUE)
+# Find files
+l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
+```
 
-# submit filter 
-pars <- data.frame("vcf" = l, "minor" = 0.005, stringsAsFactors = FALSE)
+```{r slurm minor freq, eval = use_slurm}
+# Use slurm
+pars <- data.frame(
+  "vcf" = l, 
+  "minor" = 0.005, 
+  use_slurm = TRUE, 
+  stringsAsFactors = FALSE
+)
+sopt <- list(time = "4:00:00", mem = "16Gb")
+
+setwd(slurm_dir)
+sjob <- rslurm::slurm_apply(bcf_allele_frequency,
+  pars,
+  jobname = "maf_allele_filter",
+  nodes = 14,
+  global_objects = "bcft",
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel minor freq, eval = use_parallel}
+# Use parallel
+pars <- data.frame(
+  "vcf" = l, 
+  "minor" = 0.005, 
+  use_slurm = FALSE, 
+  stringsAsFactors = FALSE
+)
 
 cl <- makeCluster(detectCores())
-out <- mclapply(X = seq_along(pars$vcf), FUN = function(i){
+out <- mclapply(X = seq_along(pars$vcf), FUN = function(i) {
   bcf_allele_frequency(
-    vcf = pars$vcf[i], 
+    vcf = pars$vcf[i],
     minor = pars$minor[i]
   )
 }, mc.cores = 14)
 stopCluster(cl)
-
 ```
 
 Next let's look to see how many variants this has returned for us:
 
-```{r}
+```{r num variants}
+# Find files
+l <- list.files(filter_dir, full.names = TRUE)
+tfvars <- gsub(
+  ".vcf.gz", 
+  ".loci", 
+  grep(".vcf.gz", l, fixed = TRUE, value = TRUE), 
+  fixed = TRUE
+)
 
-# grab the files we are working with
-l <- list.files(new_dir, full.names = TRUE)
-tfvars <- gsub(".vcf.gz", ".loci", grep(".vcf.gz",l, fixed = TRUE, value = TRUE),fixed=TRUE)
-
-# calculate the number of positions
-for(i in seq_along(tfvars)) {
-  if(!file.exists(tfvars[i])) {
-    system(paste("bcftools query -f '%POS\n' ", l[i], ">", tfvars[i]))
+# Calculate the number of positions
+for (i in seq_along(tfvars)) {
+  if (!file.exists(tfvars[i])) {
+    system(paste(
+      load_bcftools,
+      "bcftools query -f '%POS\n' ", 
+      l[i], 
+      ">", 
+      tfvars[i]
+    ))
   }
 }
 
-# how many per chromosome
+# How many per chromosome
 num_variants <- lapply(tfvars, function(x) {
   as.numeric(system(paste("cat", x, "| wc -l"), intern = TRUE))
 })
 
-# create these into a data frame
-variants <- lapply(seq_along(tfvars), function(x){
-  
+# Create a data frame
+variants <- lapply(seq_along(tfvars), function(x) {
   df <- data.table::fread(tfvars[x])
   df$chrom <- x
   names(df)[1] <- "pos"
   df$y <- 1
   return(df)
-} )
-
+})
 df <- data.table::rbindlist(variants)
+```
 
-## plot their locations
-
+```{r plot variants}
+# Plot their locations
 plot_locations <- function(df) {
-  
   Pf_chrom_lengths <- function() {
-    ret <- data.frame(chrom = 1:14,
-                      length = c(643292, 947102, 1060087,
-                                 1204112, 1343552, 1418244,
-                                 1501717, 1419563, 1541723,
-                                 1687655, 2038337, 2271478,
-                                 2895605, 3291871))
+    ret <- data.frame(
+      chrom = 1:14,
+      length = c(
+        643292, 947102, 1060087,
+        1204112, 1343552, 1418244,
+        1501717, 1419563, 1541723,
+        1687655, 2038337, 2271478,
+        2895605, 3291871
+      )
+    )
     return(ret)
   }
-  
+
   df_chrom_lengths <- Pf_chrom_lengths()
-  
-  df_vlines = df_chrom_lengths[rep(1:14, each = 16),]
-  df_vlines$x = rep(1:16*2e5 + 1, times = 14)
+
+  df_vlines <- df_chrom_lengths[rep(1:14, each = 16), ]
+  df_vlines$x <- rep(1:16 * 2e5 + 1, times = 14)
   df_vlines <- subset(df_vlines, df_vlines$x < df_vlines$length)
-  
-  
-  # produce basic plot
-  plot1 <- ggplot(df) + facet_wrap(~chrom, ncol = 1)
-  plot1 <- plot1 + theme(strip.background = element_blank(),
-                         strip.text.x = element_blank(),
-                         panel.grid.major = element_blank(),
-                         panel.grid.minor = element_blank(),
-                         panel.background = element_blank())
-  
-  # add rectangles and grid lines
-  plot1 <- plot1 + geom_rect(aes(xmin = 1, xmax = length, ymin = 0, ymax = 1), col = grey(0.7), size = 0.2, fill = grey(0.95), data = df_chrom_lengths)
-  plot1 <- plot1 + geom_segment(aes(x = x, y = 0, xend = x, yend = 1), col = grey(0.8), size = 0.1, data = df_vlines)
-  
-  # set y scale
-  plot1 <- plot1 + theme(axis.text.y = element_blank(), 
-                         axis.ticks.y = element_blank(),
-                         axis.title.y = element_blank())
-  
-  # add data
+
+  # Produce basic plot
+  plot1 <- ggplot(df) +
+    facet_wrap(~chrom, ncol = 1)
+  plot1 <- plot1 + theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  )
+
+  # Add rectangles and grid lines
+  plot1 <- plot1 + 
+    geom_rect(
+      aes(xmin = 1, xmax = length, ymin = 0, ymax = 1), 
+      col = grey(0.7), 
+      size = 0.2, 
+      fill = grey(0.95), 
+      data = df_chrom_lengths
+    )
+  plot1 <- plot1 + 
+    geom_segment(
+      aes(x = x, y = 0, xend = x, yend = 1), 
+      col = grey(0.8), 
+      size = 0.1, 
+      data = df_vlines
+    )
+
+  # Set y scale
+  plot1 <- plot1 + theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+  # Add data
   plot1 <- plot1 + geom_segment(aes(x = pos, y = 0, xend = pos, yend = y))
-  
-  # labels and legends
+
+  # Labels and legends
   x11()
-  plot1 <- plot1 + xlab("position") 
+  plot1 <- plot1 + xlab("position")
   print(plot1)
   invisible(plot1)
 }
-ggplot2::ggsave(file.path(here::here(), "analysis/plots/chrom_locations.png"), plot_locations(df))
+
+ggplot2::ggsave(paste0(home_dir, "chrom_locations.png"), plot_locations(df))
 ```
 
 ## Subset SNPs to those that pass at regional level
 
-The SNPs we have chosen have suitable MAF across all samples, which is global. We will now subset further to those that remian when we repeat the filtering within chosen demes. 
+The SNPs we have chosen have suitable MAF across all samples, which is global.
+We will now subset further to those that remain when we repeat the filtering
+within chosen demes.
 
-Deciding how many "demes" there effectively are is difficult. One approach is to look at the genetics and look at Fst betweeen chosen demes. 
+Deciding how many "demes" there effectively are is difficult. One approach is to
+look at the genetics and look at Fst between chosen demes.
 
-Alternatively, we could look at the number of clusters based on k means clustering and a silhouette based assessment of the correct number of clusters. 
+Alternatively, we could look at the number of clusters based on k means
+clustering and a silhouette based assessment of the correct number of clusters.
 
-```{r}
-
-# get the Pf6k sample meta
+```{r cluster determination}
+# Get the Pf6k sample meta
 tf <- tempfile()
-download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt",tf)
+download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt", tf)
 meta <- data.table::fread(tf)
 
-# do k means clustering
+# Do k means clustering
 library(cluster)
 locations <- unique(meta[, c("Lat", "Long")])
 
-sis <- 2:(nrow(locations)-1)
-for(k in sis) {
-  
+sis <- 2:(nrow(locations) - 1)
+for (k in sis) {
   si <- silhouette(cluster::pam(x = locations, k))
-  sis[k-1] <- mean(si[,3])
+  sis[k - 1] <- mean(si[, 3])
 }
 
 plot(sis)
-abline(v = which(diff(sign(diff(sis)))==-2)+1)
-text(which(diff(sign(diff(sis)))==-2)+2, 0.1, which(diff(sign(diff(sis)))==-2)+2)
-
+abline(v = which(diff(sign(diff(sis))) == -2) + 1)
+text(
+  which(diff(sign(diff(sis))) == -2) + 2, 
+  0.1, 
+  which(diff(sign(diff(sis))) == -2) + 2
+)
 ```
 
-Looking at the silhoutte plot is not super clear and there are a few contenders. Given that we can be confident there are more than than 5 clusters in the world with significant differences in PLAF, then any of 13, 18, 24, 27, 29 or 33 seem all suitable. We could plot what these look like to see which seems sensible:
+Looking at the silhouette plot is not super clear and there are a few
+contenders. Given that we can be confident there are more than than 5 clusters
+in the world with significant differences in PLAF, then any of 13, 18, 24, 27,
+29 or 33 seem all suitable. We could plot what these look like to see which
+seems sensible:
 
-```{r, eval = FALSE}
-
+```{r plot clusters, eval = FALSE}
 # This works as an aside
 install.packages('sf', configure.args = 
                      '--with-proj-include=/gpfs/runtime/opt/proj/5.2.0/bin/ 
@@ -355,55 +502,62 @@ install.packages('rgdal', configure.args =
 
 devtools::install_github("OJWatson/roxer")
 
-df <- meta[meta$`Exclusion reason`=="Analysis_set",c("Lat", "Long")]
-ks <- cluster::pam(df[,1:2], k = 24)
+df <- meta[meta$`Exclusion reason` == "Analysis_set", c("Lat", "Long")]
+ks <- cluster::pam(df[, 1:2], k = 24)
 df$color <- as.factor(ks$clustering)
-roxer::map_plot(df,"Lat","Long","text")
-
+roxer::map_plot(df, "Lat", "Long", "text")
 ```
 
-24 seems suitable. So let's break the sites down into 24 and then collect the suitable loci and check them agianst those previously identified. 
+24 seems suitable. So let's break the sites down into 24 and then collect the
+suitable loci and check them against those previously identified.
 
-How many samples is that per site? 
+How many samples is that per site?
 
 ```{r}
 table(df$color)
 ```
 
-Okay so a few sites are underrepresented (18 and 19) so we may need to exclude these when identifying the intersect of the global SNPs and regional SNPs. 
+Okay so a few sites are underrepresented (18 and 19) so we may need to exclude
+these when identifying the intersect of the global SNPs and regional SNPs.
 
-```{r}
-
-meta <- meta[meta$`Exclusion reason`=="Analysis_set", ]
-ks <- cluster::pam(meta[,c("Lat","Long")], k = 24)
+```{r kmeans filter}
+meta <- meta[meta$`Exclusion reason` == "Analysis_set", ]
+ks <- cluster::pam(meta[, c("Lat", "Long")], k = 24)
 meta$k_cluster <- as.factor(ks$clustering)
 
-# funtion to subset by samples and then count the variant
+# Function to subset by samples and then count the variant
 sample_maf_subset_count <- function(samples, minor = 0.005, vcf){
-  
   tf_s <- tempfile()
   tf <- tempfile()
   writeLines(samples, tf_s)
   
-  system(paste("bcftools view -S ", 
-               tf_s, vcf, 
-               paste0("| bcftools view -q ", minor,":alt1", collapse = ""), 
-               "| bcftools query -f '%POS\n' ",
-               "> ", tf))
+  system(paste(
+    load_bcftools,
+    "bcftools view -S ", 
+    tf_s, 
+    vcf, 
+    paste0("| bcftools view -q ", minor,":alt1", collapse = ""), 
+    "| bcftools query -f '%POS\n' ",
+    "> ", 
+    tf
+  ))
   
   return(readLines(tf))
-  
 }
 
-# build parameter obj list
-new_dir <- file.path(here::here(),"analysis/data/vcfs/pf3k_release6_COI_filtering/")
-l <- grep("final.vcf.gz", list.files(new_dir, full.names = TRUE), value = TRUE)
+# Find files
+l <- list.files(filter_dir, full.names = TRUE)
+l <- grep("final.vcf.gz", l, value = TRUE)
 
-obj_list <- vector(mode = "list", length = length(unique(meta$k_cluster))*length(l))
+# Build param list
+obj_list <- vector(
+  mode = "list", 
+  length = length(unique(meta$k_cluster)) * length(l)
+)
 count <- 1
-for(i in seq_len(length(unique(meta$k_cluster)))) {
+for (i in seq_len(length(unique(meta$k_cluster)))) {
   samples <- meta$Sample[meta$k_cluster == i]
-  for(j in seq_len(length(l))) {
+  for (j in seq_len(length(l))) {
     obj_list[[count]]$samples <- samples
     obj_list[[count]]$vcf <- l[j]
     obj_list[[count]]$minor <- 0.005
@@ -411,305 +565,458 @@ for(i in seq_len(length(unique(meta$k_cluster)))) {
   }
 }
 
-# submit filter 
+# Create directory for output
+dir.create(paste0(home_dir, "snp_selections"))
+```
+
+```{r slurm kmeans filter, eval = use_slurm}
+# Use slurm
+setwd(slurm_dir)
+sopt <- list(time = "4:00:00", mem = "16Gb")
+
+sjob <- rslurm::slurm_apply(
+  f = function(i) {
+    sample_maf_subset_count(
+      samples = obj_list[[i]]$samples,
+      minor = obj_list[[i]]$minor,
+      vcf = obj_list[[i]]$vcf
+    )
+  },
+  params = data.frame(i = seq_along(obj_list)),
+  global_objects = c("sample_maf_subset_count", "obj_list"),
+  jobname = "kmeans_filters",
+  nodes = length(obj_list),
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+
+saveRDS(res, paste0(home_dir, "snp_selections/maf_subset_out.rds"))
+```
+
+
+```{r parallel kmeans filter, eval = use_parallel}
+# Use parallel processing
 cl <- makeCluster(detectCores())
-out <- mclapply(X = seq_along(obj_list), FUN = function(i){
+out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
   sample_maf_subset_count(
-  samples = obj_list[[i]]$samples,
-  minor = obj_list[[i]]$minor,
-  vcf = obj_list[[i]]$vcf
+    samples = obj_list[[i]]$samples,
+    minor = obj_list[[i]]$minor,
+    vcf = obj_list[[i]]$vcf
   )
 }, mc.cores = 14)
 stopCluster(cl)
-dir.create(dirname(file.path(here::here(),"analysis/data/derived/snp_selections/maf_subset_out.rds")))
-saveRDS(out, file.path(here::here(),"analysis/data/derived/snp_selections/maf_subset_out.rds"))
 
-```
-
-Now processing to calculate the intercepting SNPs between regionally MAF>0.01 and global MAF>0.01
-
-```{r}
-
-# what are the samples and vcfs we are working with
-samples <- lapply(obj_list,"[[","samples")
-vcf <- lapply(obj_list,"[[","vcf")
-intersects <- vector("list", length(l))
-k <- length(unique(meta$k_cluster))
-out <- readRDS(file.path(here::here(), "analysis/data/derived/snp_selections/maf_subset_out.rds"))      
-
-# loop through the vcfs and see which loci are common across n regions up to all regions
-for(i in seq_len(length(l))) {
-  
-  pos <- which(unlist(lapply(vcf, identical, y = vcf[[i]])))
-  count <- table(as.numeric(unlist(out[pos])))
-  for(j in 1:24) {
-  intersects[[i]][[j]] <- names(which(count >= (j)))
-  }
-  
-}
-
-# plot the fall of loci with regions
-inclusions <- data.frame("regions" = 1:24,
-                         "loci" = sapply(1:24,function(x) {length(unlist(lapply(intersects, "[[", x)))}))
-inclusions_plot <- ggplot(inclusions, aes(x=regions, y=loci)) + geom_point() + geom_line()
-ggplot2::ggsave(file.path(here::here(), "analysis/plots/inclusions.png"), inclusions_plot)
-
-# is it the same region screwing up as we go between the loci found in 24 regions vs 23 regions
-missing <- lapply(1:14, function(x) {
-  setdiff(intersects[[x]][[23]],intersects[[x]][[24]])
-  })
-
-found <- vector("list", length(l))
-for(i in seq_len(length(l))) {
-  pos <- which(unlist(lapply(vcf, identical, y = vcf[[i]])))
-  for(j in seq_along(pos)){
-  found[[i]][[j]] <- sum((is.na(match(missing[[i]],out[[pos[j]]]))))
-  }
-}
-
-do.call(rbind,found)
-
-```
-
-So as suspected, region 19 is contributing most of the spurious SNPs (region had only 37 samples) and then region 15 (80 samples). So most likely these are not useful SNPs maintained globally and could either be driven by low N or because they are geographically different.  
-
-So we will focus on the intersect between the SNPs identified in all regions and the global ones:
-
-```{r}
-# regional SNPs
-regional_snps <- lapply(intersects, "[[", 24)
-
-# global SNPs
-l <- list.files(new_dir, full.names = TRUE)
-loci <- tfvars <- grep("loci", l, value=TRUE)
-global_snps <- lapply(loci, readLines)
-
-# intersect
-intersect_snps <- mapply(intersect, regional_snps, global_snps)
-saveRDS(intersect_snps, file.path(here::here(),"analysis/data/derived/snp_selections/intercept_snps_0.005.rds"))
+saveRDS(out, paste0(home_dir, "snp_selections/maf_subset_out.rds"))
 ```
 
 ## Subsetting to intersecting SNPs
 
-```{r}
+Now processing to calculate the intercepting SNPs between regionally MAF > 0.005
+and global MAF > 0.005.
 
-# filter by loci
-loci_subset <- function(loci, vcf, chrom, vcfout) {
-  
-  # create our loci filter table
-  tf <- tempfile(fileext = ".txt")
-  loc_df <- data.frame("CHROM" = paste0("Pf3D7_", chrom, "_v3"), 
-                       "POS" = loci)
-  write.table(loc_df, tf, row.names = FALSE, quote = FALSE, sep = "\t", col.names = FALSE)
-  
-  # filter our vcf
-  system(paste("bcftools view -O z -T", tf, vcf, ">", gsub("//", "/", vcfout)))
-         
+```{r intersecting}
+# Read previously saved rds file
+res <- readRDS(paste0(home_dir, "snp_selections/maf_subset_out.rds"))      
+
+# What are the samples and vcfs we are working with
+samples <- lapply(obj_list, "[[", "samples")
+vcf <- lapply(obj_list, "[[", "vcf")
+intersects <- vector("list", length(l))
+k <- length(unique(meta$k_cluster))   
+
+# Loop through the vcfs and see which loci are common across n regions up to all
+# regions
+for (i in seq_len(length(l))) {
+  pos <- which(unlist(lapply(vcf, identical, y = vcf[[i]])))
+  count <- table(as.numeric(unlist(res[pos])))
+  for (j in 1:24) {
+    intersects[[i]][[j]] <- names(which(count >= (j)))
+  }
+}
+```
+
+
+```{r intersecting plot}
+# Plot the fall of loci with regions
+inclusions <- data.frame(
+  "regions" = 1:24,
+  "loci" = sapply(1:24, function(x) {
+    length(unlist(lapply(intersects, "[[", x)))
+  })
+)
+inclusions_plot <- ggplot(inclusions, aes(x = regions, y = loci)) +
+  geom_point() +
+  geom_line()
+
+ggplot2::ggsave(paste0(home_dir, "inclusions.png"), inclusions_plot)
+```
+
+
+```{r isolate odd regions}
+# Is it the same region screwing up as we go between the loci found in 24
+# regions vs 23 regions
+missing <- lapply(1:14, function(x) {
+  setdiff(intersects[[x]][[23]], intersects[[x]][[24]])
+})
+
+found <- vector("list", length(l))
+for (i in seq_len(length(l))) {
+  pos <- which(unlist(lapply(vcf, identical, y = vcf[[i]])))
+  for (j in seq_along(pos)) {
+    found[[i]][[j]] <- sum((is.na(match(missing[[i]], out[[pos[j]]]))))
+  }
 }
 
-# samples to be filtered
-intersect_snps <- readRDS(
-  file.path(here::here(),"analysis/data/derived/snp_selections/intercept_snps_0.005.rds")
+do.call(rbind, found)
+```
+
+So as suspected, region 19 is contributing most of the spurious SNPs (region had
+only 37 samples) and then region 15 (80 samples). So most likely these are not
+useful SNPs maintained globally and could either be driven by low N or because
+they are geographically different.
+
+So we will focus on the intersect between the SNPs identified in all regions and
+the global ones:
+
+```{r save intersecting}
+# Regional SNPs
+regional_snps <- lapply(intersects, "[[", 24)
+
+# Global SNPs
+l <- list.files(filter_dir, full.names = TRUE)
+loci <- tfvars <- grep("loci", l, value=TRUE)
+global_snps <- lapply(loci, readLines)
+
+# Intersect
+intersect_snps <- mapply(intersect, regional_snps, global_snps)
+saveRDS(
+  intersect_snps, 
+  paste0(home_dir, "snp_selections/intersect_snps_0.005.rds")
+)
+```
+
+```{r intersecting filter}
+# Filter by loci
+loci_subset <- function(loci, vcf, chrom, vcfout) {
+
+  # Create our loci filter table
+  tf <- tempfile(fileext = ".txt")
+  loc_df <- data.frame(
+    "CHROM" = paste0("Pf3D7_", chrom, "_v3"),
+    "POS" = loci
+  )
+  write.table(
+    loc_df, 
+    tf, 
+    row.names = FALSE, 
+    quote = FALSE, 
+    sep = "\t", 
+    col.names = FALSE
   )
 
-getwd()
-l <- list.files(file.path(here::here(),new_dir), full.names = TRUE)
+  # Filter our vcf
+  system(paste(load_bcftools, "bcftools view -O z -T", tf, vcf, ">", vcfout))
+}
+
+# Samples to be filtered
+intersect_snps <- readRDS(paste0(
+  home_dir, 
+  "snp_selections/intersect_snps_0.005.rds")
+)
+
+# Find files
+l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("vcf.gz", l, value = TRUE, fixed = TRUE)
 
-# create obj list
+# Create obj list
 obj_list <- vector("list", 14)
-for(i in seq_along(obj_list)) {
+for (i in seq_along(obj_list)) {
   obj_list[[i]]$loci <- intersect_snps[[i]]
   obj_list[[i]]$vcf <- l[i]
-  obj_list[[i]]$chrom <- ifelse(nchar(i)==1, paste0("0",i), i)
+  obj_list[[i]]$chrom <- ifelse(nchar(i) == 1, paste0("0", i), i)
   obj_list[[i]]$vcfout <- gsub("final", "final_coi", l[i])
 }
+```
 
+```{r slurm intersectin filter, eval = use_slurm}
+# Use slurm
+setwd(slurm_dir)
+sopt <- list(time = "4:00:00", mem = "16Gb")
 
-# submit jobs
-# submit filter 
+sjob <- rslurm::slurm_apply(
+  f = function(i) {
+    loci_subset(
+      loci = obj_list[[i]]$loci,
+      vcf = obj_list[[i]]$vcf,
+      chrom = obj_list[[i]]$chrom,
+      vcfout = obj_list[[i]]$vcfout
+    )
+  },
+  params = data.frame(i = seq_along(obj_list)),
+  global_objects = c("loci_subset", "obj_list"),
+  jobname = "loci_filters",
+  nodes = length(obj_list),
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel intersectin filter, eval = use_parallel}
+# Use parallel processing
 cl <- makeCluster(detectCores())
-out <- mclapply(X = seq_along(obj_list), FUN = function(i){
+out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
   loci_subset(
-  loci = obj_list[[i]]$loci,
-  vcf = obj_list[[i]]$vcf,
-  chrom = obj_list[[i]]$chrom,
-  vcfout = obj_list[[i]]$vcfout
+    loci = obj_list[[i]]$loci,
+    vcf = obj_list[[i]]$vcf,
+    chrom = obj_list[[i]]$chrom,
+    vcfout = obj_list[[i]]$vcfout
   )
-  }, mc.cores = 14
-  )
+}, mc.cores = 14)
 stopCluster(cl)
-
 ```
 
 ## Joining all intersecting vcfs into one
 
-
-```{r}
-
-# get the VCFs
-l <- list.files(file.path(here::here(), new_dir), full.names = TRUE)
+```{r merge intersecting vcfs}
+# Get the VCFs
+l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("final_coi", l, value = TRUE)
 
-# output file
-O <- gsub("_01_v3","",l[1])
+# Output file
+O <- gsub("_01_v3", "", l[1])
 
-# loop through and get fix and gt
+# Loop through and get fix and gt from vcf
 fix <- vector("list", length(l))
 gt <- vector("list", length(l))
-for(i in 1:length(l)) {
-  
+for (i in 1:length(l)) {
   vcfRobj_i <- vcfR::read.vcfR(l[i])
   fix[[i]] <- vcfRobj_i@fix
   gt[[i]] <- vcfRobj_i@gt
-  
 }
 
-# append all together and write to file
+# Append all together and write to file
 meta <- append(vcfRobj_i@meta, "##Combined chromosomes into one VCF")
 fixs <- do.call(rbind, fix)
 gts <- do.call(rbind, gt)
 newvcfR <- new("vcfR", meta = meta, fix = fixs, gt = gts)
 
-## write the vcf to file as well as the rds
+# Write the vcf to file as well as the rds
 vcfR::write.vcf(newvcfR, O)
-vcf_rds <- file.path(here::here(),"analysis/data/derived/snp_selections/vcf_final_intersecting.rds")
+vcf_rds <- paste0(home_dir, "snp_selections/vcf_final.rds")
 saveRDS(newvcfR, vcf_rds)
 ```
 
-We can also now create one not based on intersecting. 
+# Create vcfs not based on intersecting
 
-```{r}
-
-# filter by loci
+```{r regional vcfs}
+# Filter by loci
 loci_sample_subset <- function(loci, samples, vcf, chrom, vcfout) {
-  
-  # create our loci filter table
+  # Create our loci filter table
   tf <- tempfile(fileext = ".txt")
-  loc_df <- data.frame("CHROM" = paste0("Pf3D7_", chrom, "_v3"), 
-                       "POS" = loci)
-  
-  tf2 <- tempfile()
-  writeLines(samples, tf2)
-  
-  write.table(loc_df, tf, row.names = FALSE, quote = FALSE, sep = "\t", col.names = FALSE)
-  
-  # filter our vcf
-  system(paste("bcftools view -O z -T", tf, "-S", tf2, vcf, ">", gsub("//", "/", vcfout)))
-         
-}
-
-# samples to be filtered
-all_snps <- readRDS(
-  file.path(here::here(),"analysis/data/derived/snp_selections/maf_subset_out.rds")
+  loc_df <- data.frame(
+    "CHROM" = paste0("Pf3D7_", chrom, "_v3"),
+    "POS" = loci
   )
 
-ranges <- function(diff, end){
-  r <- list();
-  for(i in 1:(end/diff)){
-    
-    r[[i]] <- (1 + ((i-1) * diff)) : (diff*i)
-    
+  tf2 <- tempfile()
+  writeLines(samples, tf2)
+
+  write.table(loc_df, tf, row.names = FALSE, quote = FALSE, sep = "\t", col.names = FALSE)
+
+  # Filter our vcf
+  system(paste(
+    load_bcftools,
+    "bcftools view -O z -T",
+    tf,
+    "-S",
+    tf2,
+    vcf,
+    ">",
+    gsub("//", "/", vcfout)
+  ))
+}
+
+# Samples to be filtered
+all_snps <- readRDS(paste0(home_dir, "snp_selections/maf_subset_out.rds"))
+
+ranges <- function(diff, end) {
+  r <- list()
+  for (i in 1:(end / diff)) {
+    r[[i]] <- (1 + ((i - 1) * diff)):(diff * i)
   }
   return(r)
 }
 
 region_pos <- ranges(14, 14*24)
-out <- readRDS(file.path(here::here(), "analysis/data/derived/snp_selections/maf_subset_out.rds"))
-new_dir <- file.path(here::here(),"analysis/data/vcfs/pf3k_release6_COI_filtering_redo/")
-l <- grep("final.vcf.gz", list.files(new_dir, full.names = TRUE), value = TRUE)
+out <- readRDS(paste0(home_dir, "snp_selections/maf_subset_out.rds"))
+l <- grep(
+  "final.vcf.gz", 
+  list.files(filter_dir, full.names = TRUE), 
+  value = TRUE
+)
 
-# create obj list
-obj_list <- vector("list", 14*24)
+# Create obj list
+obj_list <- vector("list", 14 * 24)
 count <- 1
-for(j in seq_len(24)) {
-for(i in 1:14) {
-  obj_list[[count]]$loci <- out[[count]]
-  obj_list[[count]]$vcf <- l[i]
-  obj_list[[count]]$chrom <- ifelse(nchar(i)==1, paste0("0",i), i)
-  obj_list[[count]]$vcfout <- gsub("final", paste0("final_coi_reg_", j),l[i])
-  obj_list[[count]]$samples <- meta$Sample[meta$k_cluster==j]
-  count <- count + 1
+for (j in seq_len(24)) {
+  for (i in 1:14) {
+    obj_list[[count]]$loci <- out[[count]]
+    obj_list[[count]]$vcf <- l[i]
+    obj_list[[count]]$chrom <- ifelse(nchar(i) == 1, paste0("0", i), i)
+    obj_list[[count]]$vcfout <- gsub("final", paste0("final_coi_reg_", j), l[i])
+    obj_list[[count]]$samples <- meta$Sample[meta$k_cluster == j]
+    count <- count + 1
+  }
 }
-}
+```
 
+```{r slurm regional vcfs, eval = use_slurm}
+# Use slurm
+setwd(slurm_dir)
+sopt <- list(time = "4:00:00", mem = "16Gb")
 
 # submit jobs
-# submit filter 
-cl <- makeCluster(detectCores())
-out <- mclapply(X = unlist(region_pos[2:24]), FUN = function(i){
-  loci_sample_subset(
-  loci = obj_list[[i]]$loci,
-  vcf = obj_list[[i]]$vcf,
-  chrom = obj_list[[i]]$chrom,
-  vcfout = obj_list[[i]]$vcfout,
-  samples = obj_list[[i]]$samples
-  )
-  }, mc.cores = 14
-  )
-stopCluster(cl)
+sjob <- rslurm::slurm_apply(
+  f = function(i) {
+    loci_sample_subset(
+      loci = obj_list[[i]]$loci,
+      vcf = obj_list[[i]]$vcf,
+      chrom = obj_list[[i]]$chrom,
+      vcfout = obj_list[[i]]$vcfout,
+      samples = obj_list[[i]]$samples
+    )
+  },
+  params = data.frame(i = seq_along(obj_list)),
+  global_objects = c("loci_sample_subset", "obj_list"),
+  jobname = "loci_sample_filters",
+  nodes = length(obj_list),
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
 
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
 ```
 
-and bind them together 
 
-```{r}
+```{r parallel regional vcfs, eval = use_parallel}
+# Use parallel processing
+cl <- makeCluster(detectCores())
+out <- mclapply(X = unlist(region_pos[2:24]), FUN = function(i) {
+  loci_sample_subset(
+    loci = obj_list[[i]]$loci,
+    vcf = obj_list[[i]]$vcf,
+    chrom = obj_list[[i]]$chrom,
+    vcfout = obj_list[[i]]$vcfout,
+    samples = obj_list[[i]]$samples
+  )
+}, mc.cores = 14)
+stopCluster(cl)
+```
 
-# get the VCFs
-new_dir <- file.path(here::here(),"analysis/data/vcfs/pf3k_release6_COI_filtering_redo/")
-l <- list.files(new_dir, full.names = TRUE)
+Bind them together 
+
+```{r merge regional}
+# Get the VCFs
+l <- list.files(filter_dir, full.names = TRUE)
 l <- grep("final_coi_reg", l, value = TRUE)
 
-for(j in (4:24)){
-  lj <- grep(paste0("\\d\\d_v3.*reg_",j,"\\.vcf"), l, value = TRUE)
-  O <- gsub("_01_v3","",lj[1])
+for (j in (1:24)) {
+  lj <- grep(paste0("\\d\\d_v3.*reg_", j, "\\.vcf"), l, value = TRUE)
+  O <- gsub("_01_v3", "", lj[1])
 
-# concatenate our vcfs with bcftools
-system(paste("bcftools concat -O z -o", gsub("//", "/", O), paste(lj, collapse = " ")))
+  # Concatenate our vcfs with bcftools
+  system(paste(
+    load_bcftools, 
+    "bcftools concat -O z -o", 
+    gsub("//", "/", O), 
+    paste(lj, collapse = " ")
+  ))
 
-# read that in and save it out
-vcf_rds <- file.path(here::here(),paste0("analysis/data/derived/snp_selections/vcf_final_reg_",j,".rds"))
+  # Read that in and save it out
+  vcf_rds <- paste0(home_dir, "snp_selections/vcf_final_reg_", j, ".rds")
 newvcfR <- vcfR::read.vcfR(gsub("//", "/", O))
 saveRDS(newvcfR, vcf_rds)
-
 }
 ```
-
 
 ## Create COIAF inputs
 
-```{r}
+```{r create coiaf inputs}
+# Find files
+l <- grep(
+  "vcf", 
+  list.files(paste0(home_dir, "snp_selections"), full.names = TRUE), 
+  value = TRUE
+)
 
-l <- grep("vcf", list.files("analysis/data/derived/snp_selections/", full.names = TRUE), value = TRUE)
-
-wsaf_out_func <- function(x){
-  
+wsaf_out_func <- function(x) {
   vcfRobj <- readRDS(x)
-  if(is.list(vcfRobj)) {vcfRobj <- vcfRobj[[1]]}
-  
+  if (is.list(vcfRobj)) {
+    vcfRobj <- vcfRobj[[1]]
+  }
+
   # 1. create gt
-  gtmat <- vcfRmanip::gtmat012(vcfRobj)/2
+  gtmat <- vcfRmanip::gtmat012(vcfRobj) / 2
   gtmat[is.na(gtmat)] <- -1
   gtmat <- t(gtmat)
-  colnames(gtmat) <- paste0(vcfRobj@fix[,"CHROM"], "_",vcfRobj@fix[,"POS"])
-  
+  colnames(gtmat) <- paste0(vcfRobj@fix[, "CHROM"], "_", vcfRobj@fix[, "POS"])
+
   # 2. create wsaf
   # extract coverage and counts matrices
   coverage <- t(vcfR::extract.gt(vcfRobj, element = "DP", as.numeric = T))
   counts_raw <- t(vcfR::extract.gt(vcfRobj, element = "AD"))
   counts <- vcfR::masplit(counts_raw, record = 1, sort = FALSE, decreasing = FALSE)
-  wsaf <- counts/coverage
-  
+  wsaf <- counts / coverage
+
   # 3. create gt cleaned wsaf
   wsaf_new <- wsaf
   wsaf_new[(gtmat == 0)] <- 1
   wsaf_new[(gtmat == 1)] <- 0
-  
-  out <- list("wsaf" = wsaf, "wsaf_cleaned" = wsaf_new, "gt" = gtmat)
-  saveRDS(out, gsub("vcf_final", "wsaf", x))  
-}
 
-cl <- makeCluster(detectCores())
+  out <- list(
+    "wsaf" = wsaf, 
+    "wsaf_cleaned" = wsaf_new, 
+    "coverage" = coverage, 
+    "gt" = gtmat
+  )
+  saveRDS(out, gsub("vcf_final", "wsaf", x))
+}
+```
+
+```{r slurm coiaf, eval = use_slurm}
+# Use slurm
+setwd(slurm_dir)
+sopt <- list(time = "4:00:00", mem = "16Gb")
+
+# submit jobs
+sjob <- rslurm::slurm_apply(
+  wsaf_out_func,
+  params = data.frame(x = l),
+  global_objects = c("wsaf_out_func"),
+  jobname = "wsaf_creation",
+  nodes = length(l),
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel coiaf, eval = use_parallel}
+# Use parallel processing
+cl <- makeCluster(14)
 out <- mclapply(X = l, wsaf_out_func, mc.cores = 14)
 stopCluster(cl)
 ```
