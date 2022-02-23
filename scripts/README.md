@@ -1,5 +1,7 @@
 # Real Data Scripts
 
+## Running With Jobs
+
 The scripts in this folder have been designed to facilitate the process of
 running real data. In our data, we have defined 24 unique regions of samples.
 The scripts have been developed such that a single region is analyzed. In doing
@@ -39,9 +41,19 @@ purrr::walk(seq(24), function(i) {
 })
 ```
 
+## Running with slurm
+
+If researchers are able to access a high performance computing cluster, they may
+also run the real data estimations by submitting jobs to slurm, a cluster
+management and job scheduling system.
+
+## File Descriptions
+
 A brief description of each script can be found below:
 
 - `coi-region`: computes the COI of each sample in each region.
+- `slurm-region`: can be used to estimate the COI of each sample by submitting
+  jobs to slurm.
 - `combine-raw-regions.R`: takes the estimated COI for each region and combines
   the estimations into data objects. These data objects are saved in the
   [data-outputs
