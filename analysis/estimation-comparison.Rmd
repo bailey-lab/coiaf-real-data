@@ -21,25 +21,11 @@ library(patchwork)
 ```
 
 This analysis file will be used to compare the different estimation strategies
-we employ to examine the COI in the world. 
+we employ to examine the COI in the world. The COI estimations we compare have
+all been generated from the filtering process illustrated in the [download data
+folder](https://github.com/bailey-lab/coiaf-real-data/tree/main/download).
 
-## Comparing data sets
-
-In comparing our estimation
-strategies, we compare three related data sets, which were generated from the
-Pf6 data set using different filtering parameters. For all three data sets, we
-first filtered the genomic data to high quality biallelic coding and non-coding
-SNPs. At this stage, each of the three data sets were filtered as follows:
-
-- Base data set: Filter to SNPs where the MAF > 0.01 globally and locally.
-Filter to sites not in linkage disequilibrium.
-- Intersecting data set: Filter to SNPs where the MAF > 0.005 globally and
-locally.
-- Regional data set: Filter to SNPs where the MAF > 0.005 locally.
-
-```{r base pf6}
-base_pf6 <- readRDS(here::here("data-outputs", "base_pf6.rds"))
-```
+## Loading estimations
 
 ```{r rmcl estimation}
 rmcl_predictions <- readRDS(here::here(
@@ -48,130 +34,26 @@ rmcl_predictions <- readRDS(here::here(
 ))
 ```
 
-```{r intersecting wsafs}
-intersecting_wsafs <- readRDS(here::here(
-  "data-outputs", 
-  "intersecting_wsafs.rds"
-)) %>%
-  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) %>% 
-  dplyr::mutate(Region = as.numeric(Region)) %>% 
-  dplyr::rename(
-    dis_var_med = dis_var, 
-    dis_freq_med = dis_freq, 
-    cont_var_med = cont_var, 
-    cont_freq_med = cont_freq
-  )
-```
-
 ```{r regional wsafs}
 regional_wsafs <- readRDS(here::here(
   "data-outputs", 
   "regional_wsafs.rds"
-)) %>%
-  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) %>% 
-  dplyr::mutate(Region = as.numeric(Region)) %>% 
-  dplyr::rename(
-    dis_var_med = dis_var, 
-    dis_freq_med = dis_freq, 
-    cont_var_med = cont_var, 
-    cont_freq_med = cont_freq
-  )
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+
+regional_wsafs_2 <- readRDS(here::here(
+  "data-outputs", 
+  "regional_wsafs.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 ```
 
-```{r compare data sets}
-comp_data_sets <- dplyr::bind_rows(
-  list(base = base_pf6, inter = intersecting_wsafs, regional = regional_wsafs), 
-  .id = "dataset"
-)
-```
-
-## Comparing techniques on the same data set
-
-### Base data set
-
-```{r freq variation}
-freq_variation <- readRDS(here::here("data-outputs", "freq_variation.rds")) %>% 
-  dplyr::filter(
-    !is.na(dis_var_med), 
-    !is.na(dis_freq_med), 
-    !is.na(cont_var_med), 
-    !is.na(cont_freq_med), 
-    !is.na(Region)
-  )
-```
-
-It is interesting to note that there is a difference in the number of samples
-between our data sets. To determine the samples that are missing from the
-`freq_variation` results, we can first determine which region the missing
-samples are from.
-
-```{r differing region}
-freq_count <- dplyr::count(freq_variation, Region)
-
-base_count <- base_pf6 %>% 
-  dplyr::count(Region) %>% 
-  dplyr::arrange(as.numeric(Region))
-
-which(freq_count$n != base_count$n)
-```
-
-We can see that there are missing samples in Region 19.
-
-```{r differing samples}
-freq_name <- freq_variation %>% 
-  dplyr::filter(Region == 19) %>% 
-  dplyr::pull(name)
-
-base_name <- base_pf6 %>% 
-  dplyr::filter(Region == 19) %>% 
-  dplyr::pull(name)
-
-base_name[(!base_name %in% freq_name)]
-```
-
-A more in depth investigation yields that there are 4
-samples that are not in the `freq_variation` results: "PW0003-C", "PW0004-C",
-"PW0014-C", and "PW0016-C".
-
-```{r compare base}
-comp_base <- dplyr::bind_rows(
-  list(base = base_pf6, variation = freq_variation), 
-  .id = "dataset"
-)
-```
-
-### Intersecting data set
-
-```{r intersecting wsafs error}
-read_inter_error <- function(file) {
-  inter_error <- readRDS(here::here("data-outputs", "vary-seq-error", file)) %>% 
-  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) %>% 
-  dplyr::mutate(Region = as.numeric(Region)) %>% 
-  dplyr::rename(
-    dis_var_med = dis_var, 
-    dis_freq_med = dis_freq, 
-    cont_var_med = cont_var, 
-    cont_freq_med = cont_freq
-  )
-}
-
-inter_error_0 <- read_inter_error("error_0.rds")
-inter_error_0.01 <- read_inter_error("error_0.01.rds")
-inter_error_0.05 <- read_inter_error("error_0.05.rds")
-inter_error_0.1 <- read_inter_error("error_0.1.rds")
-inter_error_0.15 <- read_inter_error("error_0.15.rds")
-inter_error_0.2 <- read_inter_error("error_0.2.rds")
-```
-
-```{r comp intersecting}
-comp_inter <- dplyr::bind_rows(
+```{r bind data }
+bind_data <- dplyr::bind_rows(
   list(
-    error_0 = inter_error_0,
-    error_0.01 = inter_error_0.01,
-    error_0.05 = inter_error_0.05,
-    error_0.1 = inter_error_0.1,
-    error_0.15 = inter_error_0.15,
-    error_0.2 = inter_error_0.2
+    regional = regional_wsafs,
+    regional_2 = regional_wsafs_2
   ), 
   .id = "dataset"
 )
@@ -198,21 +80,21 @@ plot_density <- function(data, col, xlab) {
 }
 
 method_comparison <- function(data) {
-  pdv <- plot_bar(data, dis_var_med, "Discrete Variant Method")
-  pcv <- plot_density(data, cont_var_med, "Continuous Variant Method")
+  pdv <- plot_bar(data, dis_var, "Discrete Variant Method")
+  pcv <- plot_density(data, cont_var, "Continuous Variant Method")
 
-  pdf <- plot_bar(data, dis_freq_med, "Discrete Frequency Method")
-  pcf <- plot_density(data, cont_freq_med, "Continuous Frequency Method")
+  pdf <- plot_bar(data, dis_freq, "Discrete Frequency Method")
+  pcf <- plot_density(data, cont_freq, "Continuous Frequency Method")
   
   pdv + pcv + pdf + pcf + plot_layout(guides = "collect")
 }
 
 rmcl_helper <- function(data, col) {
   title <- switch(col,
-    dis_var_med = "Discrete Variant Method",
-    dis_freq_med = "Discrete Frequency Method",
-    cont_var_med = "Continuous Variant Method",
-    cont_freq_med = "Continuous Frequency Method"
+    dis_var = "Discrete Variant Method",
+    dis_freq = "Discrete Frequency Method",
+    cont_var = "Continuous Variant Method",
+    cont_freq = "Continuous Frequency Method"
   )
   
   ggplot(data, aes(x = rmcl_med, y = .data[[col]], color = dataset)) +
@@ -234,110 +116,80 @@ rmcl_helper <- function(data, col) {
 rmcl_comparison <- function(data) {
   data = dplyr::filter(data, rmcl_med != 25)
   
-  rmcl_helper(data, "dis_var_med") + 
-    rmcl_helper(data, "dis_freq_med") +
-    rmcl_helper(data, "cont_var_med") +
-    rmcl_helper(data, "cont_freq_med") + 
+  rmcl_helper(data, "dis_var") + 
+    rmcl_helper(data, "dis_freq") +
+    rmcl_helper(data, "cont_var") +
+    rmcl_helper(data, "cont_freq") + 
     plot_layout(guides = "collect")
 }
 ```
 
-### Between data sets
-
 ```{r data sets methods}
-method_comparison(comp_data_sets)
+method_comparison(bind_data)
 ```
 
 ```{r data sets rmcl}
-rmcl_comparison(comp_data_sets)
+rmcl_comparison(bind_data)
 ```
 
-### Between base data set
+## Isolating samples where we deviate from RMCL
 
-```{r base methods}
-method_comparison(comp_base)
+First find samples where RMCL predicts one but coiaf predicts a high COI.
+
+```{r high coi samples}
+high_samples <- bind_data %>%
+  dplyr::filter(dataset == "regional", rmcl_med == 1, cont_freq >= 4) %>%
+  dplyr::select(name, Region)
 ```
 
-```{r base rmcl}
-rmcl_comparison(comp_base)
+Plot the sample
+
+```{r plot the sample}
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+plots_per_figure <- 6
+
+purrr::walk(1:6, function(i) {
+  # Assign six plots per figure
+  if (i %% plots_per_figure == 1) {
+    pdf(paste0("analysis/comparison-figures/regional_samples_", i, ".pdf"))
+    par(mfrow = c(3, 2))
+  }
+
+  # Determine sample name and region
+  sample_name <- high_samples$name[i]
+  sample_region <- high_samples$Region[i]
+
+  # Isolate matrices
+  region_matrix <- readRDS(paste0(
+    path, 
+    glue::glue("wsaf_reg_{sample_region}.rds")
+  ))
+  wsaf_matrix <- region_matrix$wsaf
+
+  # Determine PLAF and WSAF
+  plaf <- colMeans(wsaf_matrix, na.rm = T)
+  wsaf <- wsaf_matrix[sample_name, ]
+  input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
+
+  # Find PLMAF and WSMAF
+  minor <- input %>%
+    dplyr::mutate(
+      wsmaf = ifelse(plmaf > 0.5, 1 - wsmaf, wsmaf),
+      plmaf = ifelse(plmaf > 0.5, 1 - plmaf, plmaf)
+    ) %>%
+    dplyr::filter(wsmaf > 0 & wsmaf < 1)
+
+  # Plot
+  plot(
+    minor$plmaf, 
+    minor$wsmaf, 
+    main = sample_name, 
+    pch = 20, 
+    cex = 1, 
+    col = "black"
+  )
+
+  # Stop writing to pdf file after 6 plots or after there are no more samples
+  if (i %% plots_per_figure == 0 | i == nrow(high_samples)) dev.off()
+})
 ```
-
-### Between intersecting data set
-
-```{r inter methods}
-method_comparison(comp_inter)
-```
-
-```{r inter rmcl}
-rmcl_comparison(comp_inter)
-```
-
-
-<!-- ## Isolating samples where we deviate from RMCL -->
-
-<!-- First find samples where RMCL predicts a high COI. -->
-
-<!-- ```{r high coi samples} -->
-<!-- high_samples <- combined_data %>%  -->
-<!--   dplyr::filter(dataset == "inter", rmcl_med == 1, cont_freq_med > 3) %>%  -->
-<!--   dplyr::select(name, Region) -->
-<!-- ``` -->
-
-<!-- Plot the sample -->
-
-<!-- ```{r plot the sample} -->
-<!-- path <- "~/Desktop/Malaria/COI data/" -->
-<!-- # rmcl_wsafs <- readRDS(paste0(path, "RMCL_wsafs_unique.rds")) -->
-
-<!-- purrr::walk(seq_len(nrow(high_samples)), function(i) { -->
-<!--   if (i %% 6 == 1) { -->
-<!--     pdf(paste0("analysis/comparison-figures/new_inter_samples_", i, ".pdf")) -->
-<!--     par(mfrow = c(3, 2)) -->
-<!--   } -->
-
-<!--   sample_name <- high_samples$name[i] -->
-<!--   # sample_name <- "PT0190-Cx" -->
-<!--   # sample_region <- 16 -->
-<!--   sample_region <- high_samples$Region[i] -->
-
-<!--   path <- "~/Desktop/Malaria/COI data/new-wsafs/intersecting-regions/" -->
-<!--   wsaf_matrix <- readRDS(paste0(path, glue::glue("region_{sample_region}.rds"))) -->
-
-<!--   # # Get region matrix -->
-<!--   # wsaf_matrix <- names(rmcl_wsafs) %>% -->
-<!--   #   stringr::str_detect(stringr::str_c("cat_region_", sample_region, "_vcf_0")) %>% -->
-<!--   #   purrr::keep(rmcl_wsafs, .) -->
-<!--   # wsaf_matrix <- wsaf_matrix[[1]] -->
-
-<!--   plaf <- colMeans(wsaf_matrix, na.rm = T) -->
-<!--   wsaf <- wsaf_matrix[sample_name, ] -->
-<!--   input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na() -->
-
-<!--   minor <- input %>%  -->
-<!--     dplyr::mutate( -->
-<!--       wsmaf = ifelse(plmaf > 0.5, 1 - wsmaf, wsmaf), -->
-<!--       plmaf = ifelse(plmaf > 0.5, 1 - plmaf, plmaf) -->
-<!--     ) %>%  -->
-<!--     dplyr::filter(wsmaf > 0 & wsmaf < 1) -->
-
-<!--   plot(minor$plmaf, minor$wsmaf, main = sample_name, pch = 20, cex = 1, col = "black") -->
-
-<!--   # # Compute windowed averages -->
-<!--   # df_grouped <- process_real( -->
-<!--   #   minor$wsmaf, minor$plmaf, -->
-<!--   #   coi_method = "frequency" -->
-<!--   # ) -->
-<!--   #  -->
-<!--   # # What was the seq error? -->
-<!--   # df_grouped$seq_error -->
-<!--   #  -->
-<!--   # # Add average to plot -->
-<!--   # lines(df_grouped$data$midpoints, df_grouped$data$m_variant, -->
-<!--   #   col = "blue", lwd = 2, type = "o", pch = 20 -->
-<!--   # ) -->
-
-<!--   if (i %% 6 == 0 | i == nrow(high_samples)) dev.off() -->
-<!-- }) -->
-<!-- ``` -->
-
-
