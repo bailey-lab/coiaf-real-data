@@ -12,8 +12,9 @@ data_dims <- purrr::map_dfr(
     wsaf_matrix <- readRDS(paste0(path, data_file))$wsaf_cleaned
     dims <- dim(wsaf_matrix)
     names(dims) <- c("samples", "loci")
-    dims
+    c(region = i, dims)
   }
 )
 
-print(data_dims)
+# Save data
+saveRDS(data_dims, here::here("data-outputs", "data_dims.rds"))
