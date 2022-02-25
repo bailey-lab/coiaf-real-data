@@ -90,7 +90,15 @@ coiaf_region <- function(file, job_name) {
   )
 
   # Save data
-  saveRDS(pred, gsub("wsaf_reg", job_name, file))
+  saveRDS(
+    pred,
+    paste0(
+      base_path,
+      "coiaf-intermediate/",
+      run_name,
+      stringr::str_extract(file, "(?<=wsaf_reg)_\\d+.rds")
+    )
+  )
 }
 
 # Estimate the COI for each region ---------------------------------------------
@@ -122,7 +130,7 @@ res <- rslurm::get_slurm_out(sjob)
 # Find files
 files <- grep(
   job_name,
-  list.files(path, full.names = TRUE),
+  list.files(paste0(base_path, "coiaf-intermediate"), full.names = TRUE),
   value = TRUE
 )
 
@@ -143,4 +151,4 @@ saveRDS(
 )
 
 # Remove raw region data
-system(glue::glue("rm -v { path }/{ job_name }*.rds"))
+system(glue::glue("rm -v { base_path }/coiaf-intermediate/{ job_name }*.rds"))
