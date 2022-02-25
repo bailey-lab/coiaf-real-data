@@ -17,13 +17,13 @@ plaf <- colMeans(wsaf_matrix, na.rm = T)
 
 # Function for running methods
 run_method <- function(sample_name, input, fn, coi_method) {
-  coi <- tryCatch(
+  tryCatch(
     rlang::exec(
       fn,
       data = input,
       data_type = "real",
-      seq_error = 0.01,
-      bin_size = 50,
+      seq_error = 0,
+      use_bins = FALSE,
       coi_method = coi_method
     ),
     error = function(e) {
@@ -31,8 +31,6 @@ run_method <- function(sample_name, input, fn, coi_method) {
       if (fn == "compute_coi") list(coi = NA) else NA
     }
   )
-
-  if (fn == "compute_coi") coi$coi else coi
 }
 
 # For each sample run the estimation functions
@@ -50,11 +48,30 @@ coi <- lapply(
     cont_var <- run_method(sample_name, input, "optimize_coi", "variant")
     cont_freq <- run_method(sample_name, input, "optimize_coi", "frequency")
 
+    # Extract coi from discrete estimation
+    dis_var_coi <- dis_var$coi
+    dis_freq_coi <- dis_freq$coi
+
+    # Extract estimate when freq method has too few loci
+    dis_freq_estimate <- ifelse(
+      rlang::has_name(dis_freq, "estimated_coi"),
+      dis_freq$estimated_coi,
+      NaN
+    )
+    cont_freq_attr <- attributes(cont_freq)
+    cont_freq_estimate <- ifelse(
+      is.null(cont_freq_attr),
+      NaN,
+      cont_freq_attr$estimated_coi
+    )
+
     list(
-      dis_var = dis_var,
-      dis_freq = dis_freq,
+      dis_var = dis_var_coi,
+      dis_freq = dis_freq_coi,
+      dis_freq_estimate = dis_freq_estimate,
       cont_var = cont_var,
-      cont_freq = cont_freq
+      cont_freq = cont_freq,
+      cont_freq_estimate = cont_freq_estimate
     )
   }
 )
@@ -68,8 +85,10 @@ pred <- tibble::tibble(
   name = rownames(wsaf_matrix),
   dis_var = coi_parsed$dis_var,
   dis_freq = coi_parsed$dis_freq,
+  dis_freq_estimate = coi_parsed$dis_freq_estimate,
   cont_var = coi_parsed$cont_var,
   cont_freq = coi_parsed$cont_freq,
+  cont_freq_estimate = coi_parsed$cont_freq_estimate,
   data_file = data_file
 )
 
