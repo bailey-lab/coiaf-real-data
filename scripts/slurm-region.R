@@ -1,6 +1,7 @@
 library(coiaf)
 base_path <- "/gpfs/data/jbailey5/apascha1/"
 path <- paste0(base_path, "snp_selections")
+job_name <- "example_job_name"
 
 # Define functions -------------------------------------------------------------
 # Helper function for running methods
@@ -24,7 +25,7 @@ run_method <- function(sample_name, input, fn, coi_method) {
 }
 
 # Define function for running each region
-coiaf_region <- function(file) {
+coiaf_region <- function(file, job_name) {
   # Read in the real data
   region_matrix <- readRDS(file)
   wsaf_matrix <- region_matrix$wsaf
@@ -70,10 +71,7 @@ coiaf_region <- function(file) {
   )
 
   # Save data
-  saveRDS(
-    pred,
-    gsub("wsaf_reg", "coiaf_estimate_region", file)
-  )
+  saveRDS(pred, gsub("wsaf_reg", job_name, file))
 }
 
 # Estimate the COI for each region ---------------------------------------------
@@ -86,12 +84,12 @@ files <- grep(
 
 # Submit job to slurm
 sopt <- list(time = "4:00:00", mem = "16Gb")
-setwd("/gpfs/data/jbailey5/apascha1/slurm_outs")
+setwd(paste0(base_path, "slurm_outs"))
 sjob <- rslurm::slurm_apply(
   coiaf_region,
-  params = data.frame(file = files),
+  params = data.frame(file = files, job_name = job_name),
   global_objects = c("coiaf_region", "run_method"),
-  jobname = "coiaf_estimation",
+  jobname = paste0("coiaf_", job_name),
   nodes = length(files),
   cpus_per_node = 1,
   slurm_options = sopt,
@@ -104,7 +102,7 @@ res <- rslurm::get_slurm_out(sjob)
 # Merge estimations ------------------------------------------------------------
 # Find files
 files <- grep(
-  "coiaf_estimate_region",
+  job_name,
   list.files(path, full.names = TRUE),
   value = TRUE
 )
@@ -126,4 +124,4 @@ saveRDS(
 )
 
 # Remove raw region data
-system(glue::glue("rm -v { path }/coiaf_estimate_region*.rds"))
+system(glue::glue("rm -v { path }/{ job_name }*.rds"))
