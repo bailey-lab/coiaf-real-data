@@ -65,13 +65,27 @@ coi <- lapply(
       cont_freq_attr$estimated_coi
     )
 
+    # Extract num variant loci and expected num variant
+    num_variant_loci <- ifelse(
+      rlang::has_name(dis_freq, "estimated_coi"),
+      dis_freq$num_variant_loci,
+      NaN
+    )
+    expected_num_loci <- ifelse(
+      rlang::has_name(dis_freq, "estimated_coi"),
+      dis_freq$expected_num_loci,
+      NaN
+    )
+
     list(
       dis_var = dis_var_coi,
       dis_freq = dis_freq_coi,
       dis_freq_estimate = dis_freq_estimate,
       cont_var = cont_var,
       cont_freq = cont_freq,
-      cont_freq_estimate = cont_freq_estimate
+      cont_freq_estimate = cont_freq_estimate,
+      num_variant_loci = num_variant_loci,
+      expected_num_loci = expected_num_loci
     )
   }
 )
@@ -89,6 +103,8 @@ pred <- tibble::tibble(
   cont_var = coi_parsed$cont_var,
   cont_freq = coi_parsed$cont_freq,
   cont_freq_estimate = coi_parsed$cont_freq_estimate,
+  num_variant_loci = coi_parsed$num_variant_loci,
+  expected_num_loci = coi_parsed$expected_num_loci,
   data_file = data_file
 )
 
