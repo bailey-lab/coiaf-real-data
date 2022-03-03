@@ -498,7 +498,7 @@ mean_world / med_world / ridges +
 
 ```{r prev correlation}
 patient_lat_long %>%
-  dplyr::select(dis_var, cont_var, prev_2_10) %>%
+  dplyr::select(dis_var, cont_var, dis_freq, cont_freq, prev_2_10) %>%
   corrr::correlate()
 ```
 
