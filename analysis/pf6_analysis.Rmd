@@ -434,8 +434,8 @@ look at the ridge plot. Here, we no longer compare our data to THE REAL McCOIL
 so we do not want to remove any observations from our data.
 
 ```{r prevalence}
-filter_data <- patient_lat_long %>%
-  dplyr::select(!dplyr::starts_with("rmcl")) %>% 
+global_prev <- patient_lat_long %>%
+  dplyr::select(!dplyr::starts_with("rmcl")) %>%
   tidyr::pivot_longer(
     cols = dplyr::starts_with(c("dis_", "cont_")),
     names_to = c(".value", "coi_method"),
@@ -450,10 +450,10 @@ filter_data <- patient_lat_long %>%
   dplyr::relocate(
     dplyr::any_of(c("coi_method", "optimization", "COI")),
     .after = name
-  ) %>%
-  dplyr::filter(coi_method == "var" & optimization == "dis")
+  )
 
-continents <- filter_data %>%
+continents <- global_prev %>%
+  dplyr::filter(coi_method == "var" & optimization == "dis") %>%
   dplyr::group_by(Region) %>%
   dplyr::mutate(med_prev = median(prev_2_10, na.rm = TRUE)) %>%
   dplyr::filter(med_prev != 0) %>%
@@ -492,4 +492,21 @@ informative picture of COI in the world.
 mean_world / med_world / ridges +
   plot_annotation(tag_levels = "A") +
   plot_layout(widths = c(2, 2, 1), heights = c(1, 1, 2))
+```
+
+### Prevalence
+
+```{r prev correlation}
+patient_lat_long %>%
+  dplyr::select(dis_var, cont_var, prev_2_10) %>%
+  corrr::correlate()
+```
+
+```{r prev lm}
+lm <- global_prev %>%
+  dplyr::filter(coi_method == "var" & optimization == "dis") %>% 
+  lm(COI ~ prev_2_10, data = .)
+
+broom::tidy(lm)
+broom::glance(lm)
 ```
