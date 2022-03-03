@@ -34,17 +34,56 @@ rmcl_predictions <- readRDS(here::here(
 ))
 ```
 
-```{r regional wsafs}
-regional_wsafs <- readRDS(here::here(
+```{r base regional}
+regional <- readRDS(here::here(
   "data-outputs", 
-  "regional_wsafs.rds"
+  "regional.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) 
+```
+
+```{r regional binned estimations}
+bin_100_seq_0 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_0.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
+bin_100_seq_0.01 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_0.01.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
-regional_wsafs_2 <- readRDS(here::here(
-  "data-outputs", 
-  "regional_wsafs.rds"
+bin_100_seq_imputed <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_imputed.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+```
+
+```{r regional regression estimations}
+regression_seq_0 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_0.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+regression_seq_0.01 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_0.01.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+regression_seq_imputed <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_imputed.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 ```
@@ -52,8 +91,13 @@ regional_wsafs_2 <- readRDS(here::here(
 ```{r bind data }
 bind_data <- dplyr::bind_rows(
   list(
-    regional = regional_wsafs,
-    regional_2 = regional_wsafs_2
+    regional = regional,
+    bin_100_seq_0 = bin_100_seq_0,
+    bin_100_seq_0.01 = bin_100_seq_0.01,
+    bin_100_seq_imputed = bin_100_seq_imputed,
+    regression_seq_0 = regression_seq_0,
+    regression_seq_0.01 = regression_seq_0.01,
+    regression_seq_imputed = regression_seq_imputed
   ), 
   .id = "dataset"
 )
