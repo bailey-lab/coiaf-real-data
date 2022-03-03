@@ -249,8 +249,8 @@ We can then generate several world maps with our data!
 map_average <- patient_lat_long %>%
   dplyr::group_by(Region, Lat, Long) %>%
   dplyr::summarise(
-    coi_mean = mean(dis_var),
-    coi_med = median(dis_freq, na.rm = TRUE),
+    coi_mean = mean(dis_var, na.rm = TRUE),
+    coi_med = median(dis_var, na.rm = TRUE),
     prev = median(as.numeric(prev_2_10)),
     rmcl_med = median(rmcl_med),
     .groups = "drop"
