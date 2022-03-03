@@ -1,7 +1,7 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/combine_regions.R")
+here::i_am("scripts/combine-raw-regions.R")
 
 # Path to data
 path <- "~/Desktop/Malaria/COI data/"

@@ -1,0 +1,356 @@
+---
+title: "Comparison of estimation strategies"
+author: "Aris Paschalidis"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include = FALSE}
+# Here, we set default options for our markdown file
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(coiaf)
+library(ggplot2)
+library(patchwork)
+```
+
+This analysis file will be used to compare the different estimation strategies
+we employ to examine the COI in the world. The COI estimations we compare have
+all been generated from the filtering process illustrated in the [download data
+folder](https://github.com/bailey-lab/coiaf-real-data/tree/main/download).
+
+## Loading estimations
+
+```{r rmcl estimation}
+rmcl_predictions <- readRDS(here::here(
+  "data-outputs",
+  "rmcl_estimation.rds"
+))
+```
+
+```{r base regional}
+regional <- readRDS(here::here(
+  "data-outputs", 
+  "regional.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) 
+```
+
+```{r regional binned estimations}
+bin_100_seq_0 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_0.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+bin_100_seq_0.01 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_0.01.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+bin_100_seq_imputed <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "bin_100_seq_imputed.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+```
+
+```{r regional regression estimations}
+regression_seq_0 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_0.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+regression_seq_0.01 <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_0.01.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+
+regression_seq_imputed <- readRDS(here::here(
+  "data-outputs",
+  "vary-seq-error",
+  "regression_seq_imputed.rds"
+)) %>% 
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
+```
+
+```{r bind data }
+bind_data <- dplyr::bind_rows(
+  list(
+    regional = regional,
+    bin_100_seq_0 = bin_100_seq_0,
+    bin_100_seq_0.01 = bin_100_seq_0.01,
+    bin_100_seq_imputed = bin_100_seq_imputed,
+    regression_seq_0 = regression_seq_0,
+    regression_seq_0.01 = regression_seq_0.01,
+    regression_seq_imputed = regression_seq_imputed
+  ), 
+  .id = "dataset"
+)
+```
+
+## Visualizing differences
+
+```{r define some helpful functions, include = FALSE}
+plot_bar <- function(data, col, xlab) {
+ ggplot(data, aes({{ col }}, fill = dataset)) +
+  geom_bar(position = "dodge") +
+  scale_fill_viridis_d() +
+  labs(x = xlab, y = "Count", fill = "Dataset") +
+  theme_coiaf()
+}
+
+plot_density <- function(data, col, xlab) {
+ ggplot(data, aes({{ col }}, fill = dataset)) +
+  geom_density() +
+  facet_wrap(~dataset) +
+  scale_fill_viridis_d() +
+  labs(x = xlab, y = "Density", fill = "Dataset") +
+  theme_coiaf()
+}
+
+method_comparison <- function(data) {
+  pdv <- plot_bar(data, dis_var, "Discrete Variant Method")
+  pcv <- plot_density(data, cont_var, "Continuous Variant Method")
+
+  pdf <- plot_bar(data, dis_freq, "Discrete Frequency Method")
+  pcf <- plot_density(data, cont_freq, "Continuous Frequency Method")
+  
+  pdv + pcv + pdf + pcf + plot_layout(guides = "collect")
+}
+
+rmcl_helper <- function(data, col) {
+  title <- switch(col,
+    dis_var = "Discrete Variant Method",
+    dis_freq = "Discrete Frequency Method",
+    cont_var = "Continuous Variant Method",
+    cont_freq = "Continuous Frequency Method"
+  )
+  
+  ggplot(data, aes(x = rmcl_med, y = .data[[col]], color = dataset)) +
+    facet_wrap(~dataset) +
+    geom_abline(color = "gray", size = 0.5) +
+    geom_jitter(alpha = 0.5) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(), 
+      plot.title = element_text(hjust = 0.5, size = 12), 
+      legend.title = element_text(size = 12), 
+      legend.position = "right"
+    ) +
+    guides(size = "none") +
+    scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10)) +
+    labs(title = title, y = "coiaf Prediction", color = "Dataset")
+}
+
+rmcl_comparison <- function(data) {
+  data = dplyr::filter(data, rmcl_med != 25)
+  
+  rmcl_helper(data, "dis_var") + 
+    rmcl_helper(data, "dis_freq") +
+    rmcl_helper(data, "cont_var") +
+    rmcl_helper(data, "cont_freq") + 
+    plot_layout(guides = "collect")
+}
+```
+
+```{r data sets methods}
+method_comparison(bind_data)
+```
+
+```{r data sets rmcl}
+rmcl_comparison(bind_data)
+```
+
+## When is the Frequency Method undefined?
+
+Here we aim to understand how to treat samples for which the Frequency Method is
+undefined. Our algorithm is undefined when there are too few loci to examine
+for the Frequency Method.
+
+First find samples where the Frequency Method is undefined.
+
+```{r high coi samples}
+undefined_samples <- regional %>%
+  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), rmcl_med >= 3)
+```
+
+Plot the sample
+
+```{r plot the sample}
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+plots_per_figure <- 6
+
+purrr::walk(seq_len(10 * 6), function(i) {
+  # Assign six plots per figure
+  if (i %% plots_per_figure == 1) {
+    pdf(paste0("analysis/comparison-figures/undefined_samples_", i, ".pdf"))
+    par(mfrow = c(3, 2))
+  }
+
+  # Determine sample details
+  sample_details <- dplyr::slice(undefined_samples, i)
+
+  # Isolate matrices
+  region_matrix <- readRDS(paste0(
+    path, 
+    glue::glue("wsaf_reg_{ sample_details$Region }.rds")
+  ))
+  wsaf_matrix <- region_matrix$wsaf
+  coverage <- region_matrix$coverage[sample_details$name, ]
+
+  # Determine PLAF and WSAF
+  plaf <- colMeans(wsaf_matrix, na.rm = T)
+  wsaf <- wsaf_matrix[sample_details$name, ]
+  input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
+
+  # Find PLMAF and WSMAF
+  minor <- input %>%
+    dplyr::mutate(
+      wsmaf = ifelse(plmaf > 0.5, 1 - wsmaf, wsmaf),
+      plmaf = ifelse(plmaf > 0.5, 1 - plmaf, plmaf)
+    ) %>%
+    dplyr::filter(wsmaf > 0 & wsmaf < 1)
+
+  # Plot
+  plot(
+    minor$plmaf, 
+    minor$wsmaf, 
+    main = sample_details %$% paste0(
+      "S:", name,
+      "; V: ", cont_var, 
+      "; F: ", cont_freq_estimate,
+      "; R: ", rmcl_med,
+      "; H: ", round(num_variant_loci / expected_num_loci, 2),
+      ": C: ", round(mean(coverage, na.rm = TRUE), 2)
+    ),
+    xlab = "PLMAF",
+    ylab = "WSMAF",
+    pch = 20, 
+    cex = 1, 
+    col = "black"
+  )
+
+  # Stop writing to pdf file after 6 plots or after there are no more samples
+  if (i %% plots_per_figure == 0 | i == nrow(undefined_samples)) dev.off()
+})
+```
+
+## Studying the coverage
+
+```{r determine coverage per sample}
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+
+sample_coverage <- purrr::map(
+  cli::cli_progress_along(seq_len(24), "Finding coverage"), 
+  function(i) {
+    coverage_matrix <- readRDS(paste0(
+      path, 
+      glue::glue("wsaf_reg_{ i }.rds")
+    ))$coverage
+    
+    rowMeans(coverage_matrix, na.rm = TRUE)
+}) %>% unlist()
+
+mean(sample_coverage, na.rm = TRUE)
+```
+
+```{r determine coverage per locus per sample}
+coverage <- purrr::map(
+  cli::cli_progress_along(seq_len(24), "Finding coverage"), 
+  function(i) {
+    coverage_matrix <- readRDS(paste0(
+      path, 
+      glue::glue("wsaf_reg_{ i }.rds")
+    ))$coverage
+  
+    data_region <- dplyr::filter(regional, Region == i)
+    
+    purrr::map_dbl(seq_len(nrow(data_region)), function(j) {
+      sample_details <- dplyr::slice(data_region, j)
+      sample_coverage <- coverage_matrix[sample_details$name, ]
+      round(mean(sample_coverage, na.rm = TRUE), 2)
+    })
+})
+
+cov_analysis <- regional %>%
+  tibble::add_column(coverage = unlist(coverage))
+
+cov_analysis %>%
+  dplyr::filter(rmcl_med >= 4) %>% 
+  ggplot(aes(x = coverage)) +
+  geom_histogram(binwidth = 10)
+
+cov_analysis %$%
+  cor.test(rmcl_med, coverage)
+```
+
+## Studying the number of heterozygous sites
+
+```{r}
+het_2pq <- regional %>%
+  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), cont_freq_estimate <= 20) %>%
+  dplyr::mutate(het_over_2pq = num_variant_loci / expected_num_loci)
+
+# Number variant loci
+ggplot(het_2pq, aes(x = het_over_2pq, y = num_variant_loci)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med) +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Variant Method
+ggplot(het_2pq, aes(x = het_over_2pq, y = cont_var)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med, scales = "fixed") +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Freq Method
+ggplot(het_2pq, aes(x = het_over_2pq, y = cont_freq_estimate)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med, scales = "fixed") +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Variant - Cont Freq
+related <- dplyr::filter(het_2pq, rmcl_med == 2)
+ggplot(related, aes(x = het_over_2pq, y = cont_freq_estimate - cont_var)) +
+  geom_density_2d() +
+  geom_point(aes(color = dis_freq_estimate), alpha = 1) +
+  facet_wrap(~dis_var, scales = "free_y") +
+  theme_coiaf() +
+  guides(fill = "none")
+```

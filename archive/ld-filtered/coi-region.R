@@ -1,7 +1,7 @@
 library(coiaf)
 
 # Declare file location
-here::i_am("scripts/high_coi_script.R")
+here::i_am("scripts/coi-region.R")
 
 # Path to data
 path <- "~/Desktop/Malaria/COI data/"
@@ -17,66 +17,21 @@ rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
 
 # Function for running methods
 run_method <- function(sample_name, input, fn, coi_method) {
-  if (coi_method == "frequency") {
-    purrr::map_dbl(
-      seq(0, 0.2, 0.01),
-      function(seq_error) {
-        coi <- tryCatch(
-          rlang::exec(
-            fn,
-            data = input,
-            data_type = "real",
-            coi_method = coi_method,
-            seq_error = seq_error,
-            bin_size = 50
-          ),
-          error = function(e) {
-            rlang::inform(glue::glue("Error for sample { sample_name }"))
-            if (fn == "compute_coi") list(coi = NA) else NA
-          }
-        )
-
-        if (fn == "compute_coi") coi$coi else coi
-      }
-    )
-  } else if (coi_method == "variant") {
-    coi <- tryCatch(
-      rlang::exec(
-        fn,
-        data = input,
-        data_type = "real",
-        coi_method = coi_method,
-        bin_size = 50
-      ),
-      error = function(e) {
-        rlang::inform(glue::glue("Error for sample { sample_name }"))
-        if (fn == "compute_coi") list(coi = NA) else NA
-      }
-    )
-
-    if (fn == "compute_coi") coi$coi else coi
-  }
-}
-
-# Function for converting the list of predictions to a single number
-find_coi <- function(vector, cluster_size, threshold) {
-  length_seq <- length(seq(0, 0.2, 0.01))
-  found_coi <- FALSE
-
-  # Start at a seq_error of 0.05 or 5%
-  for (i in seq(6, length_seq - cluster_size)) {
-    cluster <- vector[i:(i + cluster_size)]
-    min <- min(cluster)
-    max <- max(cluster)
-
-    if (((max - min) <= threshold) & !found_coi) {
-      found_coi <- TRUE
-      coi <- mean(cluster)
-      break
+  coi <- tryCatch(
+    rlang::exec(
+      fn,
+      data = input,
+      data_type = "real",
+      coi_method = coi_method,
+      bin_size = 50
+    ),
+    error = function(e) {
+      rlang::inform(glue::glue("Error for sample { sample_name }"))
+      if (fn == "compute_coi") list(coi = NA) else NA
     }
-  }
+  )
 
-  if (found_coi) coi else 1
+  if (fn == "compute_coi") coi$coi else coi
 }
 
 # Analyze the real data. In order to split up our operation in to smaller
@@ -87,7 +42,10 @@ regions <- names(rmcl_wsafs) %>%
   stringr::str_extract("region_[:digit:]+") %>%
   unique()
 
-curr_region <- regions[1]
+# Declare a global variable region, which will dictate what region we are
+# looking at
+cli::cli_inform("Running region {region}")
+curr_region <- glue::glue("region_{ region }")
 
 # Find all wsafs for each region
 rmcl_region <- names(rmcl_wsafs) %>%
@@ -102,6 +60,7 @@ cli::cli({
   cli::cli_ol(print_regions)
 })
 
+# Run all data in the region
 raw_predictions <- lapply(
   cli::cli_progress_along(seq_along(rmcl_region), "Computing predictions"),
   function(x) {
@@ -112,7 +71,7 @@ raw_predictions <- lapply(
     coi_region <- lapply(seq_len(nrow(sample)), function(i) {
       sample_name <- rownames(sample)[i]
       wsaf <- sample[i, ]
-      input <- tibble::tibble(wsaf = wsaf, plaf = plaf) %>% tidyr::drop_na()
+      input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
 
       dis_var <- run_method(sample_name, input, "compute_coi", "variant")
       dis_freq <- run_method(sample_name, input, "compute_coi", "frequency")
@@ -128,7 +87,7 @@ raw_predictions <- lapply(
     })
 
     coi_region <- coi_region %>%
-      purrr::flatten() %>%
+      unlist() %>%
       split(., names(.))
 
     # Prediction tibble
@@ -140,30 +99,6 @@ raw_predictions <- lapply(
       cont_freq = coi_region$cont_freq,
       file = names(rmcl_region)[x]
     )
-
-    # Fitler out missing data
-    pred_na <- pred %>%
-      dplyr::filter(
-        !is.na(dis_var),
-        !is.na(dis_freq),
-        !is.na(cont_var),
-        !is.na(cont_freq)
-      )
-
-    # Get only one prediction
-    pred_simple <- pred_na %>%
-      dplyr::rowwise() %>%
-      dplyr::mutate(
-        dis_var = unlist(dis_var),
-        dis_freq = find_coi(dis_freq, 5, 0.5),
-        .after = dis_var
-      ) %>%
-      dplyr::mutate(
-        cont_var = unlist(cont_var),
-        cont_freq = find_coi(cont_freq, 5, 0.5),
-        .after = cont_var
-      ) %>%
-      dplyr::mutate(cont_freq = dplyr::if_else(cont_freq > 10, 1, cont_freq))
 
     # Summarize over the 5 rmcl runs
     rmcl_outputs <- rmcl_coi_out %>%
@@ -177,7 +112,7 @@ raw_predictions <- lapply(
       )
 
     # Join the tibbles
-    dplyr::full_join(pred_simple, rmcl_outputs, by = "name") %>%
+    dplyr::full_join(pred, rmcl_outputs, by = "name") %>%
       dplyr::mutate(
         Region = as.numeric(stringr::str_extract(file, "(?<=region_)[:digit:]*")),
         VCF = as.numeric(stringr::str_extract(file, "(?<=vcf_)[:digit:]*"))

@@ -1,0 +1,116 @@
+---
+title: "Create coiaf Inputs"
+author: "Aris Paschalidis, OJ Watson"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+    toc: true
+    fig_caption: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, echo = FALSE}
+# Here, we set default options for our markdown file
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(rslurm)
+library(vcfR)
+library(parallel)
+
+# A boolean to indicate whether jobs will be submitted via slurm or run using
+# parallel processing
+use_slurm = TRUE
+use_parallel = !use_slurm
+```
+
+```{r define directories, echo = FALSE}
+# Directory which contains the sub directories
+home_dir <- "/gpfs/data/jbailey5/apascha1/"
+
+# Directory where we will do our filtering and subsetting etc
+filter_dir <- paste0(home_dir, "pf_release6_COI_filtering")
+
+# Directory where we will download the Pf 6 samples to
+sample_dir <- paste0(home_dir, "pf_release6")
+
+# Directory for slurm outputs
+slurm_dir <- paste0(home_dir, "slurm_outs")
+```
+
+## Create COIAF inputs
+
+```{r create coiaf inputs}
+# Find files
+l <- grep(
+  "vcf", 
+  list.files(paste0(home_dir, "snp_selections"), full.names = TRUE), 
+  value = TRUE
+)
+
+wsaf_out_func <- function(x) {
+  vcfRobj <- readRDS(x)
+  if (is.list(vcfRobj)) {
+    vcfRobj <- vcfRobj[[1]]
+  }
+
+  # 1. create gt
+  gtmat <- vcfRmanip::gtmat012(vcfRobj) / 2
+  gtmat[is.na(gtmat)] <- -1
+  gtmat <- t(gtmat)
+  colnames(gtmat) <- paste0(vcfRobj@fix[, "CHROM"], "_", vcfRobj@fix[, "POS"])
+
+  # 2. create wsaf
+  # extract coverage and counts matrices
+  coverage <- t(vcfR::extract.gt(vcfRobj, element = "DP", as.numeric = T))
+  counts_raw <- t(vcfR::extract.gt(vcfRobj, element = "AD"))
+  counts <- vcfR::masplit(counts_raw, record = 1, sort = FALSE, decreasing = FALSE)
+  wsaf <- counts / coverage
+
+  # 3. create gt cleaned wsaf
+  wsaf_new <- wsaf
+  wsaf_new[(gtmat == 0)] <- 1
+  wsaf_new[(gtmat == 1)] <- 0
+
+  out <- list(
+    "wsaf" = wsaf, 
+    "wsaf_cleaned" = wsaf_new, 
+    "coverage" = coverage, 
+    "gt" = gtmat
+  )
+  saveRDS(out, gsub("vcf_final", "wsaf", x))
+}
+```
+
+```{r slurm coiaf, eval = use_slurm}
+# Use slurm
+setwd(slurm_dir)
+sopt <- list(time = "4:00:00", mem = "16Gb")
+
+# submit jobs
+sjob <- rslurm::slurm_apply(
+  wsaf_out_func,
+  params = data.frame(x = l),
+  global_objects = c("wsaf_out_func"),
+  jobname = "wsaf_creation",
+  nodes = length(l),
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel coiaf, eval = use_parallel}
+# Use parallel processing
+cl <- makeCluster(14)
+out <- mclapply(X = l, wsaf_out_func, mc.cores = 14)
+stopCluster(cl)
+```

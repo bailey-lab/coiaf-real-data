@@ -28,46 +28,31 @@ current state of the art model for predicting COI -- THE REAL McCOIL.
 
 We first load in our data.
 
-```{r read rmcl data}
-# Path to data
-path <- "~/Desktop/Malaria/COI data/"
-
-# Read in the real data and the REAL McCOIL COI predictions
-rmcl_wsafs <- readRDS(paste0(path, "RMCL_wsafs_unique.rds"))
-rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
-  tibble::as_tibble() %>%
-  dplyr::mutate(dplyr::across(c(file, name), as.character)) %>%
-  dplyr::rename(rmcl = COI) %>%
-  dplyr::rename(rmcl_025 = COI_025) %>%
-  dplyr::rename(rmcl_975 = COI_975)
-```
-
 ```{r load pf6 results}
-complete_predictions <- readRDS(here::here(
+rmcl_predictions <- readRDS(here::here(
   "data-outputs",
-  "freq_variation.rds"
+  "rmcl_estimation.rds"
+))
+
+complete_predictions <- readRDS(here::here(
+  "data-outputs", 
+  "regional.rds"
 )) %>% 
-  dplyr::filter(
-    !is.na(dis_var_med), 
-    !is.na(dis_freq_med), 
-    !is.na(cont_var_med), 
-    !is.na(cont_freq_med), 
-    !is.na(Region)
-  )
+  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 ```
 
 ## Evaluate predictions
 
 We first reshape our data so that we have a single column with our COI
 estimates. This involves creating two new additional column to represent the
-coi_method and optimization method we used to compute the COI.
+COI estimation method and optimization method we used to compute the COI.
 
 ```{r pivoting data}
 pivot_data <- complete_predictions %>%
   tidyr::pivot_longer(
     cols = dplyr::starts_with(c("dis", "cont")),
     names_to = c(".value", "coi_method"),
-    names_pattern = "(.*)_(.*)_.*"
+    names_pattern = "(.*)_(.*)"
   ) %>%
   tidyr::pivot_longer(
     cols = dplyr::any_of(c("dis", "cont")),
@@ -251,9 +236,9 @@ patient_lat_long <- dplyr::left_join(
 ```
 
 ```{r sample location summary}
-patient_lat_long %>% 
-  dplyr::count(Continent, Subregion) %>% 
-  dplyr::mutate(proportion = n / sum(n) * 100) %>% 
+patient_lat_long %>%
+  dplyr::count(Continent, Subregion) %>%
+  dplyr::mutate(proportion = n / sum(n) * 100) %>%
   dplyr::arrange(Continent, Subregion)
 ```
 
@@ -264,8 +249,8 @@ We can then generate several world maps with our data!
 map_average <- patient_lat_long %>%
   dplyr::group_by(Region, Lat, Long) %>%
   dplyr::summarise(
-    coi_mean = mean(dis_var_med),
-    coi_med = median(dis_freq_med),
+    coi_mean = mean(dis_var),
+    coi_med = median(dis_freq, na.rm = TRUE),
     prev = median(as.numeric(prev_2_10)),
     rmcl_med = median(rmcl_med),
     .groups = "drop"
@@ -300,14 +285,14 @@ med_world
 # The two patients are: "PN0075-C" and "PT0069-C"
 # We also set up data to be descending so that smaller COIs stay on top.
 all_world_map <- patient_lat_long %>%
-  dplyr::arrange(desc(dis_var_med)) %>%
+  dplyr::arrange(desc(dis_var)) %>%
   dplyr::rename(lat = Lat) %>%
   dplyr::rename(long = Long)
 
 # Plot all patient COIs (theme is added so that there is less whitespace)
 all_world <- world_map(
   all_world_map,
-  dis_var_med,
+  dis_var,
   "COI",
   alpha = 0.7,
   breaks = c(1, 2, 4, 6, 8, 10)
@@ -317,25 +302,25 @@ all_world
 
 ```{r kruskal-wallis}
 # Mean, median COI per continent
-patient_lat_long %>% 
+patient_lat_long %>%
   dplyr::group_by(Continent) %>% 
   dplyr::summarise(
-    mean = mean(dis_var_med, na.rm = TRUE), 
-    median = median(dis_var_med, na.rm = TRUE),
+    mean = mean(dis_var, na.rm = TRUE), 
+    median = median(dis_var, na.rm = TRUE),
     .groups = "drop"
   )
 
 # KW across 24 regions
-kruskal.test(dis_var_med ~ Continent, data = patient_lat_long)
+kruskal.test(dis_var ~ Continent, data = patient_lat_long)
 
 # KW across subregions of continents
-kruskal.test(dis_var_med ~ Subregion, data = patient_lat_long)
+kruskal.test(dis_var ~ Subregion, data = patient_lat_long)
 ```
 
 ```{r nemenyi continent}
 # Post hoc Nemenyi test
 pvalue_continent <- PMCMRplus::kwAllPairsNemenyiTest(
-  dis_var_med ~ as.factor(Continent), 
+  dis_var ~ as.factor(Continent), 
   data = patient_lat_long
 )$p.value
 
@@ -344,16 +329,16 @@ purrr::map_df(tibble::as_tibble(pvalue_continent), ~ round(.x, digits = 5)) %>%
 ```
 
 ```{r subregion}
-patient_lat_long %>% 
+patient_lat_long %>%
   dplyr::group_by(Continent, Subregion) %>% 
   dplyr::summarise(
-    mean = mean(dis_var_med, na.rm = TRUE), 
-    median = median(dis_var_med, na.rm = TRUE),
+    mean = mean(dis_var, na.rm = TRUE), 
+    median = median(dis_var, na.rm = TRUE),
     .groups = "drop"
   )
 
 pvalue_subregion <- PMCMRplus::kwAllPairsNemenyiTest(
-  dis_var_med ~ as.factor(Subregion), 
+  dis_var ~ as.factor(Subregion), 
   data = patient_lat_long
 )$p.value
 
@@ -370,7 +355,7 @@ prevalence of mutations as well as the FwS metric.
 ```{r prevalence and fws}
 prev_fws <- patient_lat_long %>%
   dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med)) %>% 
-  tidyr::pivot_longer(dplyr::any_of(c("dis_var_med", "rmcl_med")),
+  tidyr::pivot_longer(dplyr::any_of(c("dis_var", "rmcl_med")),
     names_to = "Method",
     values_to = "COI",
     values_drop_na = TRUE
@@ -380,7 +365,7 @@ prev_fws <- patient_lat_long %>%
     prev = as.numeric(prev_2_10),
     Method = dplyr::recode(
       Method,
-      dis_var_med = "Discrete Variant Method",
+      dis_var = "Discrete Variant Method",
       rmcl_med = "THE REAL McCOIL"
     ),
     .keep = "unused"
@@ -454,7 +439,7 @@ filter_data <- patient_lat_long %>%
   tidyr::pivot_longer(
     cols = dplyr::starts_with(c("dis_", "cont_")),
     names_to = c(".value", "coi_method"),
-    names_pattern = "(.*)_(.*)_.*"
+    names_pattern = "(.*)_(.*)"
   ) %>%
   tidyr::pivot_longer(
     cols = dplyr::any_of(c("dis", "cont")),
