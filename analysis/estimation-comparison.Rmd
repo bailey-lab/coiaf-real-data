@@ -176,14 +176,17 @@ method_comparison(bind_data)
 rmcl_comparison(bind_data)
 ```
 
-## Isolating samples where we deviate from RMCL
+## When is the Frequency Method undefined?
 
-First find samples where RMCL predicts one but coiaf predicts a high COI.
+Here we aim to understand how to treat samples for which the Frequency Method is
+undefined. Our algorithm is undefined when there are too few loci to examine
+for the Frequency Method.
+
+First find samples where the Frequency Method is undefined.
 
 ```{r high coi samples}
-high_samples <- bind_data %>%
-  dplyr::filter(dataset == "regional", rmcl_med == 1, cont_freq >= 4) %>%
-  dplyr::select(name, Region)
+undefined_samples <- regional %>%
+  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), rmcl_med >= 3)
 ```
 
 Plot the sample
@@ -192,27 +195,27 @@ Plot the sample
 path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 plots_per_figure <- 6
 
-purrr::walk(1:6, function(i) {
+purrr::walk(seq_len(10 * 6), function(i) {
   # Assign six plots per figure
   if (i %% plots_per_figure == 1) {
-    pdf(paste0("analysis/comparison-figures/regional_samples_", i, ".pdf"))
+    pdf(paste0("analysis/comparison-figures/undefined_samples_", i, ".pdf"))
     par(mfrow = c(3, 2))
   }
 
-  # Determine sample name and region
-  sample_name <- high_samples$name[i]
-  sample_region <- high_samples$Region[i]
+  # Determine sample details
+  sample_details <- dplyr::slice(undefined_samples, i)
 
   # Isolate matrices
   region_matrix <- readRDS(paste0(
     path, 
-    glue::glue("wsaf_reg_{sample_region}.rds")
+    glue::glue("wsaf_reg_{ sample_details$Region }.rds")
   ))
   wsaf_matrix <- region_matrix$wsaf
+  coverage <- region_matrix$coverage[sample_details$name, ]
 
   # Determine PLAF and WSAF
   plaf <- colMeans(wsaf_matrix, na.rm = T)
-  wsaf <- wsaf_matrix[sample_name, ]
+  wsaf <- wsaf_matrix[sample_details$name, ]
   input <- tibble::tibble(wsmaf = wsaf, plmaf = plaf) %>% tidyr::drop_na()
 
   # Find PLMAF and WSMAF
@@ -227,13 +230,22 @@ purrr::walk(1:6, function(i) {
   plot(
     minor$plmaf, 
     minor$wsmaf, 
-    main = sample_name, 
+    main = sample_details %$% paste0(
+      "S:", name,
+      "; V: ", cont_var, 
+      "; F: ", cont_freq_estimate,
+      "; R: ", rmcl_med,
+      "; H: ", round(num_variant_loci / expected_num_loci, 2),
+      ": C: ", round(mean(coverage, na.rm = TRUE), 2)
+    ),
+    xlab = "PLMAF",
+    ylab = "WSMAF",
     pch = 20, 
     cex = 1, 
     col = "black"
   )
 
   # Stop writing to pdf file after 6 plots or after there are no more samples
-  if (i %% plots_per_figure == 0 | i == nrow(high_samples)) dev.off()
+  if (i %% plots_per_figure == 0 | i == nrow(undefined_samples)) dev.off()
 })
 ```
