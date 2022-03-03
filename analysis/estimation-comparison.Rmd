@@ -249,3 +249,108 @@ purrr::walk(seq_len(10 * 6), function(i) {
   if (i %% plots_per_figure == 0 | i == nrow(undefined_samples)) dev.off()
 })
 ```
+
+## Studying the coverage
+
+```{r determine coverage per sample}
+path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+
+sample_coverage <- purrr::map(
+  cli::cli_progress_along(seq_len(24), "Finding coverage"), 
+  function(i) {
+    coverage_matrix <- readRDS(paste0(
+      path, 
+      glue::glue("wsaf_reg_{ i }.rds")
+    ))$coverage
+    
+    rowMeans(coverage_matrix, na.rm = TRUE)
+}) %>% unlist()
+
+mean(sample_coverage, na.rm = TRUE)
+```
+
+```{r determine coverage per locus per sample}
+coverage <- purrr::map(
+  cli::cli_progress_along(seq_len(24), "Finding coverage"), 
+  function(i) {
+    coverage_matrix <- readRDS(paste0(
+      path, 
+      glue::glue("wsaf_reg_{ i }.rds")
+    ))$coverage
+  
+    data_region <- dplyr::filter(regional, Region == i)
+    
+    purrr::map_dbl(seq_len(nrow(data_region)), function(j) {
+      sample_details <- dplyr::slice(data_region, j)
+      sample_coverage <- coverage_matrix[sample_details$name, ]
+      round(mean(sample_coverage, na.rm = TRUE), 2)
+    })
+})
+
+cov_analysis <- regional %>%
+  tibble::add_column(coverage = unlist(coverage))
+
+cov_analysis %>%
+  dplyr::filter(rmcl_med >= 4) %>% 
+  ggplot(aes(x = coverage)) +
+  geom_histogram(binwidth = 10)
+
+cov_analysis %$%
+  cor.test(rmcl_med, coverage)
+```
+
+## Studying the number of heterozygous sites
+
+```{r}
+het_2pq <- regional %>%
+  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), cont_freq_estimate <= 20) %>%
+  dplyr::mutate(het_over_2pq = num_variant_loci / expected_num_loci)
+
+# Number variant loci
+ggplot(het_2pq, aes(x = het_over_2pq, y = num_variant_loci)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med) +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Variant Method
+ggplot(het_2pq, aes(x = het_over_2pq, y = cont_var)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med, scales = "fixed") +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Freq Method
+ggplot(het_2pq, aes(x = het_over_2pq, y = cont_freq_estimate)) +
+  geom_point(alpha = 0.5) +
+  stat_density_2d(
+    aes(fill = ..level..), 
+    geom = "polygon", 
+    colour = "white", 
+    alpha = 1
+  ) +
+  facet_wrap(~ rmcl_med, scales = "fixed") +
+  theme_coiaf() +
+  guides(fill = "none")
+
+# Cont Variant - Cont Freq
+related <- dplyr::filter(het_2pq, rmcl_med == 2)
+ggplot(related, aes(x = het_over_2pq, y = cont_freq_estimate - cont_var)) +
+  geom_density_2d() +
+  geom_point(aes(color = dis_freq_estimate), alpha = 1) +
+  facet_wrap(~dis_var, scales = "free_y") +
+  theme_coiaf() +
+  guides(fill = "none")
+```
