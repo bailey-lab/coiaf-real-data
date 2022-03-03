@@ -32,7 +32,7 @@ al.*.
     │   └── pf6_analysis.Rmd
     ├── data-outputs
     │   ├── data_dims.rds
-    │   ├── regional_wsafs.rds
+    │   ├── regional.rds
     │   └── rmcl_estimation.rds
     ├── download
     │   ├── 00_Pf6_vcf_filtering.Rmd
