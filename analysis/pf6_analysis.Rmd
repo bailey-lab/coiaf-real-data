@@ -437,7 +437,7 @@ so we do not want to remove any observations from our data.
 global_prev <- patient_lat_long %>%
   dplyr::select(!dplyr::starts_with("rmcl")) %>%
   tidyr::pivot_longer(
-    cols = dplyr::starts_with(c("dis_", "cont_")),
+    cols = c("dis_var", "cont_var", "dis_freq", "cont_freq"),
     names_to = c(".value", "coi_method"),
     names_pattern = "(.*)_(.*)"
   ) %>%
@@ -503,10 +503,16 @@ patient_lat_long %>%
 ```
 
 ```{r prev lm}
-lm <- global_prev %>%
-  dplyr::filter(coi_method == "var" & optimization == "dis") %>% 
-  lm(COI ~ prev_2_10, data = .)
+regressions <- global_prev %>%
+  dplyr::select(COI, prev_2_10, coi_method, optimization) %>% 
+  tidyr::nest(data = c(COI, prev_2_10)) %>% 
+  dplyr::mutate(
+    fit = purrr::map(data, ~ lm(COI ~ prev_2_10, data = .x)),
+    tidied = purrr::map(fit, broom::tidy),
+    glanced = purrr::map(fit, broom::glance),
+    augmented = purrr::map(fit, broom::augment)
+  )
 
-broom::tidy(lm)
-broom::glance(lm)
+tidyr::unnest(regressions, tidied)
+tidyr::unnest(regressions, glanced)
 ```
