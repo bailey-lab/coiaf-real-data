@@ -125,7 +125,10 @@ meta$prev_2_10 <- as.numeric(meta$Year)
 meta <- tidyr::drop_na(meta)
 
 # get rasters using malariaAtlas package (this will take like 15 mins to download)
-PfPR2_10 <- malariaAtlas::getRaster(year = sort(unique(meta$prev_2_10)))
+PfPR2_10 <- malariaAtlas::getRaster(
+  surface = "Plasmodium falciparum PR2 - 10 version 2020", 
+  year = sort(unique(meta$prev_2_10))
+)
 
 # loop through and extra malaria prevalence
 for (i in seq_along(sort(unique(meta$Year)))) {
