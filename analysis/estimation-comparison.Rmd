@@ -252,7 +252,7 @@ purrr::walk(seq_len(10 * 6), function(i) {
 
 ## Studying the coverage
 
-```{r determine coverage per sample}
+```{r determine mean coverage per sample}
 path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 
 sample_coverage <- purrr::map(
@@ -267,9 +267,16 @@ sample_coverage <- purrr::map(
 }) %>% unlist()
 
 mean(sample_coverage, na.rm = TRUE)
+
+sample_coverage %>%
+  tibble::as_tibble(rownames = "name") %>%
+  dplyr::rename(coverage = value) %>% 
+  dplyr::right_join(regional) %>% 
+  dplyr::group_by(Region) %>% 
+  dplyr::summarise(mean_coverage = mean(coverage))
 ```
 
-```{r determine coverage per locus per sample}
+```{r determine mean coverage per locus per sample}
 coverage <- purrr::map(
   cli::cli_progress_along(seq_len(24), "Finding coverage"), 
   function(i) {
