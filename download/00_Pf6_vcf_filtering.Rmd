@@ -274,6 +274,81 @@ out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
 stopCluster(cl)
 ```
 
+## Filter to sites that are part of the core genome
+
+```{r core genome}
+bcf_core_genome <- function(genome_file, file) {
+  # Create index file
+  system(paste(load_bcftools, "bcftools index", file))
+  
+  # Get chromosome name by parsing the file name
+  chrom <- sub(".*(Pf3D7_\\d+_v3).*", "\\1", file)
+  
+  # Subset core genome file to sites on the chromosome of interest
+  tf <- tempfile()
+  sub_cmd <- paste("grep", chrom, genome_file, ">", tf)
+  system(sub_cmd)
+  
+  # Print subsetted genome file
+  system(paste("cat", tf))
+  
+  # Filter to core genome sites using subsetted genome file
+  bcft(query = c("view -O z -R", tf), file = file)
+  
+  # Remove index file to keep directory clean
+  system(paste0("rm ", file, ".csi"))
+}
+
+# Find the files we are working with
+l <- list.files(filter_dir, full.names = TRUE)
+l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
+
+# Build parameter list
+obj_list <- list()
+for (i in seq_along(l)) {
+  obj_list[[i]] <- list(
+    genome_file = paste0(home_dir, "download/core-genome.tsv"),
+    file = l[i]
+  )
+}
+```
+
+```{r slurm core genome, eval = use_slurm}
+# Use slurm
+sopt <- list(time = "4:00:00", mem = "16Gb")
+setwd(slurm_dir)
+sjob <- rslurm::slurm_apply(
+  f = function(i) {
+    bcf_core_genome(
+      genome_file = obj_list[[i]]$genome_file,
+      file = obj_list[[i]]$file
+    )
+  },
+  params = data.frame(i = seq_along(obj_list)),
+  global_objects = c("bcf_core_genome", "bcft", "obj_list", "load_bcftools"),
+  jobname = "core_genome",
+  nodes = 14,
+  cpus_per_node = 1,
+  slurm_options = sopt,
+  submit = TRUE
+)
+
+rslurm::get_job_status(sjob)
+res <- rslurm::get_slurm_out(sjob)
+```
+
+```{r parallel core genome, eval = use_parallel}
+# Use parallel processing
+cl <- makeCluster(detectCores())
+out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
+  bcf_core_genome(
+    genome_file = obj_list[[i]]$genome_file,
+    file = obj_list[[i]]$file
+  )
+}, mc.cores = 14)
+stopCluster(cl)
+```
+
 ## Select intermediate frequency and high quality SNPs
 
 We'll continue by subsetting to the SNPs that have a minor allele frequency
