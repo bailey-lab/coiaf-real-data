@@ -138,7 +138,10 @@ pars <- data.frame("x" = 1:14, "dir" = sample_dir)
 sopt <- list(time = "1:00:00")
 setwd(slurm_dir)
 
-sjob <- rslurm::slurm_apply(bcf_filter, pars,
+sjob <- rslurm::slurm_apply(
+  bcf_filter, 
+  pars,
+  global_objects = c("load_bcftools"),
   jobname = "zhu_filter",
   nodes = 14, cpus_per_node = 1, slurm_options = sopt,
   submit = TRUE
@@ -158,7 +161,7 @@ stopCluster(cl)
 
 ## Drop samples that don't pass quality control 
 
-The samples in Pf7k are annotated in terms of whether they were included for
+The samples in Pf6 are annotated in terms of whether they were included for
 further analysis or not. If they were not included it is usually due to poor
 read coverage or being lab samples. We'll remove these before moving on.
 
@@ -245,7 +248,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  global_objects = c("bcf_sample_subset", "bcft", "obj_list"),
+  global_objects = c("bcf_sample_subset", "bcft", "obj_list", "load_bcftools"),
   jobname = "exclusion_drops",
   nodes = 14,
   cpus_per_node = 1,
@@ -256,7 +259,6 @@ sjob <- rslurm::slurm_apply(
 rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
-
 
 ```{r parallel drop samples, eval = use_parallel}
 # Use parallel processing
@@ -279,8 +281,8 @@ greater than 0.005.
 
 ```{r minor freq}
 # Define frequency filter function
-bcf_allele_frequency <- function(vcf, minor = 0.005, use_slurm = TRUE) {
-  bcft(paste0("view -O z -q ", minor, ":alt1 "), vcf, use_slurm = use_slurm)
+bcf_allele_frequency <- function(vcf, minor = 0.005) {
+  bcft(paste0("view -O z -q ", minor, ":alt1 "), vcf)
 }
 
 # Find files
@@ -293,7 +295,6 @@ l <- grep("final.vcf.gz", l, fixed = TRUE, value = TRUE)
 pars <- data.frame(
   "vcf" = l, 
   "minor" = 0.005, 
-  use_slurm = TRUE, 
   stringsAsFactors = FALSE
 )
 sopt <- list(time = "4:00:00", mem = "16Gb")
@@ -303,7 +304,7 @@ sjob <- rslurm::slurm_apply(bcf_allele_frequency,
   pars,
   jobname = "maf_allele_filter",
   nodes = 14,
-  global_objects = "bcft",
+  global_objects = c("bcft", "load_bcftools"),
   cpus_per_node = 1,
   slurm_options = sopt,
   submit = TRUE
@@ -582,7 +583,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  global_objects = c("sample_maf_subset_count", "obj_list"),
+  global_objects = c("sample_maf_subset_count", "obj_list", "load_bcftools"),
   jobname = "kmeans_filters",
   nodes = length(obj_list),
   cpus_per_node = 1,
@@ -595,7 +596,6 @@ res <- rslurm::get_slurm_out(sjob)
 
 saveRDS(res, paste0(home_dir, "snp_selections/maf_subset_out.rds"))
 ```
-
 
 ```{r parallel kmeans filter, eval = use_parallel}
 # Use parallel processing
@@ -638,7 +638,6 @@ for (i in seq_len(length(l))) {
 }
 ```
 
-
 ```{r intersecting plot}
 # Plot the fall of loci with regions
 inclusions <- data.frame(
@@ -653,7 +652,6 @@ inclusions_plot <- ggplot(inclusions, aes(x = regions, y = loci)) +
 
 ggplot2::ggsave(paste0(home_dir, "inclusions.png"), inclusions_plot)
 ```
-
 
 ```{r isolate odd regions}
 # Is it the same region screwing up as we go between the loci found in 24
@@ -741,7 +739,7 @@ for (i in seq_along(obj_list)) {
 }
 ```
 
-```{r slurm intersectin filter, eval = use_slurm}
+```{r slurm intersecting filter, eval = use_slurm}
 # Use slurm
 setwd(slurm_dir)
 sopt <- list(time = "4:00:00", mem = "16Gb")
@@ -756,7 +754,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  global_objects = c("loci_subset", "obj_list"),
+  global_objects = c("loci_subset", "obj_list", "load_bcftools"),
   jobname = "loci_filters",
   nodes = length(obj_list),
   cpus_per_node = 1,
@@ -768,7 +766,7 @@ rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
-```{r parallel intersectin filter, eval = use_parallel}
+```{r parallel intersecting filter, eval = use_parallel}
 # Use parallel processing
 cl <- makeCluster(detectCores())
 out <- mclapply(X = seq_along(obj_list), FUN = function(i) {
@@ -894,7 +892,7 @@ sjob <- rslurm::slurm_apply(
     )
   },
   params = data.frame(i = seq_along(obj_list)),
-  global_objects = c("loci_sample_subset", "obj_list"),
+  global_objects = c("loci_sample_subset", "obj_list", "load_bcftools"),
   jobname = "loci_sample_filters",
   nodes = length(obj_list),
   cpus_per_node = 1,
