@@ -888,6 +888,14 @@ saveRDS(newvcfR, vcf_rds)
 # Create vcfs not based on intersecting
 
 ```{r regional vcfs}
+# Get the Pf6k sample meta
+tf <- tempfile()
+download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt", tf)
+meta <- data.table::fread(tf)
+meta <- meta[meta$`Exclusion reason` == "Analysis_set", ]
+ks <- cluster::pam(meta[, c("Lat", "Long")], k = 24)
+meta$k_cluster <- as.factor(ks$clustering)
+
 # Filter by loci
 loci_sample_subset <- function(loci, samples, vcf, chrom, vcfout) {
   # Create our loci filter table
