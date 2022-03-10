@@ -173,8 +173,7 @@ bcft <- function(query, file, outfile = NULL, cmd_only = FALSE) {
     file <- paste(file, ">", outfile)
   } else {
     tf <- tempfile()
-    outfile <- tf
-    file <- paste(file, ">", outfile)
+    file <- paste(file, ">", tf, "; mv -f", tf, file)
   }
 
   cmd <- paste(load_bcftools, "bcftools", paste(query, collapse = " "), file)
