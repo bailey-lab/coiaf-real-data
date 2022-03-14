@@ -391,8 +391,7 @@ res <- rslurm::get_slurm_out(sjob)
 # Use parallel
 pars <- data.frame(
   "vcf" = l, 
-  "minor" = 0.005, 
-  use_slurm = FALSE, 
+  "minor" = 0.005,
   stringsAsFactors = FALSE
 )
 
