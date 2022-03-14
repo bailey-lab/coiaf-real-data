@@ -4,7 +4,7 @@ library(coiaf)
 here::i_am("scripts/coi-region.R")
 
 # Path to data
-path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+path <- "~/Desktop/Malaria/COI data/core-genome/"
 
 # Declare a variable region, which will dictate what region we are looking at
 cli::cli_inform("Running region {region}")

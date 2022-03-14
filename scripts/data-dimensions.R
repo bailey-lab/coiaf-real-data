@@ -2,7 +2,7 @@
 here::i_am("scripts/data-dimensions.R")
 
 # Path to data
-path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+path <- "~/Desktop/Malaria/COI data/core-genome/"
 
 # Read in the real data and determine number of samples and loci per region
 data_dims <- purrr::map_dfr(
