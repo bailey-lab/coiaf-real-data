@@ -351,83 +351,75 @@ purrr::map_df(tibble::as_tibble(pvalue_subregion), ~ round(.x, digits = 5)) %>%
 
 ## Prevalence & FwS
 
-We can also look at the relationship between our COI estimations and the
-prevalence of mutations as well as the FwS metric.
+We can also look at the relationship between our COI estimations and the FwS
+metric as well as the prevalence of mutations.
 
-```{r prevalence and fws}
+```{r prev fws data}
 prev_fws <- patient_lat_long %>%
-  dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med)) %>% 
-  tidyr::pivot_longer(dplyr::any_of(c("dis_var", "rmcl_med")),
+  dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med)) %>%
+  tidyr::pivot_longer(
+    cols = c("dis_var", "cont_var", "dis_freq", "cont_freq", "rmcl_med"),
     names_to = "Method",
-    values_to = "COI",
-    values_drop_na = TRUE
+    values_to = "COI"
   ) %>%
-  dplyr::select(name, Region:Long, prev_2_10:COI) %>%
+  dplyr::relocate(dplyr::any_of(c("Method", "COI")), .after = name) %>% 
   dplyr::mutate(
-    prev = as.numeric(prev_2_10),
     Method = dplyr::recode(
       Method,
-      dis_var = "Discrete Variant Method",
+      dis_var = "Discrete \n Variant Method",
+      cont_var = "Continuous \n Variant Method",
+      dis_freq = "Discrete \n Frequency Method",
+      cont_freq = "Continuous \n Frequency Method",
       rmcl_med = "THE REAL McCOIL"
-    ),
-    .keep = "unused"
+    )
   )
 ```
 
+### FwS
 
 ```{r fws}
-# FwS
 ggplot(data = prev_fws, aes(x = Fws, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
   labs(x = "FwS", y = "Estimated COI") +
   facet_grid(~Method) +
-  scale_color_discrete(
-    name = "Estimation Method",
-    labels = c("Discrete Variant Method", "THE REAL McCOIL")
-  ) +
+  guides(color = "none") +
   theme_coiaf()
 
 # Correlation
-coiaf_fws <- dplyr::filter(prev_fws, Method == "Discrete Variant Method")
+coiaf_fws <- dplyr::filter(prev_fws, Method == "Discrete \n Variant Method")
 cor.test(coiaf_fws$Fws, coiaf_fws$COI)
 
 rmcl_fws <- dplyr::filter(prev_fws, Method == "THE REAL McCOIL")
 cor.test(rmcl_fws$Fws, rmcl_fws$COI)
 ```
 
+### Prevalence
 
 ```{r prev, warning = FALSE}
-# Prevalence
-ggplot(data = prev_fws, aes(x = prev, y = COI, color = Method)) +
-  geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "black") +
+ggplot(data = prev_fws, aes(x = prev_2_10, y = COI, color = Method)) +
+  geom_point(alpha = 0.2, position = position_jitter(height = 0.2)) +
+  geom_smooth(method = "lm", formula = y ~ x) +
   scale_x_log10(
     breaks = c(0.01, 0.1, 1),
     labels = c(0.01, 0.1, 1),
     limits = c(0.01, 1)
   ) +
-  facet_grid(~Method) +
+  facet_grid(~forcats::as_factor(Method)) +
   labs(x = "Log10 Prevalence", y = "Estimated COI") +
-  scale_color_discrete(
-    name = "Estimation Method",
-    labels = c("Discrete Variant Method", "THE REAL McCOIL")
-  ) +
+  guides(color = "none") +
   theme_coiaf()
 
 ggplot(
-  data = tidyr::drop_na(prev_fws),
+  data = prev_fws, 
   aes(
-    x = cut(prev, seq(0, 1, 0.1), right = TRUE),
+    x = cut(prev_2_10, seq(0, 1, 0.1), right = TRUE),
     y = COI, color = Method
   )
 ) +
   geom_boxplot(alpha = 0.3) +
-  facet_grid(~Method) +
+  facet_grid(~forcats::as_factor(Method)) +
   labs(x = "Prevalence", y = "Estimated COI") +
-  scale_color_discrete(
-    name = "Estimation Method",
-    labels = c("Discrete Variant Method", "THE REAL McCOIL")
-  ) +
+  guides(color = "none") +
   theme_coiaf()
 ```
 
