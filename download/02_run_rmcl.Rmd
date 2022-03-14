@@ -1,6 +1,6 @@
 ---
-title: "Creating Pf6k filtered SNPs for RMCL"
-author: "OJ Watson"
+title: "Run THE REAL McCOIL"
+author: "OJ Watson, Aris Paschalidis"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   prettydoc::html_pretty:
@@ -33,7 +33,7 @@ sample_dir <- paste0(home_dir, "pf_release6")
 slurm_dir <- paste0(home_dir, "slurm_outs")
 ```
 
-## LD Filtering
+## LD Filter
 
 In order to run THE REAL McCOIL, we must filter to sites that are not in linkage
 disequilibrium.
@@ -99,21 +99,22 @@ rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
 ```
 
-## Running RMCL
+## Run RMCL
 
 Now that we have suitable datasets we need to split them up into their regions
 and then create our heterozygous calls for putting into RMCL
 
-```{r}
-# function to load vcf and subset to samples in given region, create gt and then RMCL
+```{r run rmcl function}
+# Define function to load vcf and subset to samples in given region, create gt
+# matrix, and then run RMCL
 submit_rmcl <- function(rep, vcf_rds, region, meta_df, path) {
-
-  # read in the vcf
+  # Read in the vcf
   vcfRobj <- readRDS(vcf_rds)
   if (is.list(vcfRobj)) {
     vcfRobj <- vcfRobj[[1]]
   }
 
+  # Determine vcf number
   vcf_num <- gsub(".*(\\d)\\.RDS", "\\1", basename(vcf_rds))
 
   # subset to samples for this region
@@ -122,23 +123,23 @@ submit_rmcl <- function(rep, vcf_rds, region, meta_df, path) {
     meta_df$Sample[meta_df$cluster == region]
   )
 
-  # create genotype matrix for RMCL (-1, 0, 0.5, 1)
+  # Create genotype matrix for RMCL (-1, 0, 0.5, 1)
   gtmat <- vcfRmanip::gtmat012(vcfRobj) / 2
   gtmat[is.na(gtmat)] <- -1
   gtmat <- t(gtmat)
   colnames(gtmat) <- rownames(vcfRobj@fix)
 
-  # create output file name
+  # Create output file name
   output <- paste0("cat_region_", region, "_vcf_", vcf_num, "_rep_", rep, ".txt")
 
-  # quick log
+  # Quick log
   message("Running RMCL")
 
   # Run RMCL categorical
   out <- McCOILR::McCOIL_categorical(
     data = gtmat,
     maxCOI = 25,
-    totalrun = 100000,
+    totalrun = 5000,
     burnin = 1000,
     M0 = 5,
     threshold_ind = round(ncol(gtmat) * 0.25),
@@ -149,47 +150,80 @@ submit_rmcl <- function(rep, vcf_rds, region, meta_df, path) {
     output = output
   )
 
-  # remove the trace for file size reasons
+  # Remove the trace for file size reasons
   file.path(path, output)
   return(out)
 }
+```
 
-
-# recreate our data frame for the regional clustering
-
-## get the Pf6k sample meta
+```{r metadata and vcfs}
+# First recreate our data frame for the regional clustering
+# Get the Pf6k sample meta
 tf <- tempfile()
 download.file("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_samples.txt", tf)
 meta <- data.table::fread(tf)
 
-## assign to clusters
+# Assign to clusters
 df <- meta[meta$`Exclusion reason` == "Analysis_set", c("Lat", "Long", "Sample")]
 ks <- cluster::pam(df[, 1:2], k = 24)
 df$cluster <- as.factor(ks$clustering)
 
-# create our source vcf paths
+# Find our LD filtered VCFs
 vcfs <- grep("results_",
-  list.files(paste0(slurm_dir, "rslurm_ld_filter"), full.names = TRUE),
+  list.files(paste0(slurm_dir, "/_rslurm_ld_filter"), full.names = TRUE),
   value = TRUE
 )
+```
 
-# build our parameter object list
-obj_grid <- expand.grid(rep = 1:5, vcfs = vcfs, regions = unique(df$cluster), stringsAsFactors = FALSE)
+Next, we create our object list.
+
+```{r rmcl object list}
+# Build object list
+obj_grid <- expand.grid(
+  rep = 1:5, 
+  vcfs = vcfs, 
+  regions = unique(df$cluster), 
+  stringsAsFactors = FALSE
+)
 obj_list <- vector("list", nrow(obj_grid))
 for (i in seq_along(obj_list)) {
   obj_list[[i]]$rep <- obj_grid$rep[i]
   obj_list[[i]]$vcf_rds <- obj_grid$vcfs[i]
   obj_list[[i]]$region <- obj_grid$regions[i]
   obj_list[[i]]$meta_df <- df
-  obj_list[[i]]$path <- file.path(here::here(), "analysis/data/derived/McCOIL_work")
+  obj_list[[i]]$path <- paste0(home_dir, "rmcl")
 }
+```
 
+Note that our object list contains over 1,000 elements, which may be too large
+of a job to submit to a cluster. We may break the job up into multiple smaller
+jobs by considering each of the 10 VCFs one at a time. For instance, we can
+create a new object list as follows.
 
-# submit filter
+```{r rmcl object list, eval = FALSE}
+# Build object list for the first VCF
+obj_grid <- expand.grid(
+  rep = 1:5, 
+  vcfs = vcfs[1], 
+  regions = unique(df$cluster), 
+  stringsAsFactors = FALSE
+)
+obj_list <- vector("list", nrow(obj_grid))
+for (i in seq_along(obj_list)) {
+  obj_list[[i]]$rep <- obj_grid$rep[i]
+  obj_list[[i]]$vcf_rds <- obj_grid$vcfs[i]
+  obj_list[[i]]$region <- obj_grid$regions[i]
+  obj_list[[i]]$meta_df <- df
+  obj_list[[i]]$path <- paste0(home_dir, "rmcl")
+}
+```
+
+```{r slurm run rmcl}
+# Use slurm
 setwd(slurm_dir)
-sopt <- list(time = "24:00:00", mem = "16Gb")
+sopt <- list(time = "48:00:00", mem = "20Gb")
 
-# submit jobs
+# Submit jobs
 sjob <- rslurm::slurm_apply(
   f = function(i) {
     submit_rmcl(
@@ -206,8 +240,37 @@ sjob <- rslurm::slurm_apply(
   nodes = length(obj_list),
   cpus_per_node = 1,
   slurm_options = sopt,
-  submit = FALSE
+  submit = TRUE
 )
 rslurm::get_job_status(sjob)
 res <- rslurm::get_slurm_out(sjob)
+```
+
+## Save Estimated COI
+
+```{r estimated coi}
+l <- list.files(paste0(home_dir, "rmcl"), full.names = TRUE)
+summary_files <- grep("summary", l, value = TRUE)
+
+summary_tbls <- lapply(summary_files, data.table::fread)
+names(summary_tbls) <- basename(summary_files)
+
+coi <- data.table::rbindlist(
+  lapply(
+    summary_tbls[!unlist(lapply(summary_tbls, function(x) {
+      nrow(x) == 0
+    }))],
+    function(x) {
+      df <- data.frame(
+        "COI" = x[x$CorP == "C"]$median,
+        "COI_025" = x[x$CorP == "C"]$quantile0.025,
+        "COI_975" = x[x$CorP == "C"]$quantile0.975,
+        "region" = unique(stringr::str_extract(x$file, "\\d{1,2}")),
+        "file" = x[x$CorP == "C"]$file,
+        "name" = x$name[x$CorP == "C"]
+      )
+    }
+  )
+)
+saveRDS(coi, paste0(home_dir, "rmcl/rmcl_coi.rds"))
 ```
