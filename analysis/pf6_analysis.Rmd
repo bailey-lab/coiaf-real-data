@@ -135,7 +135,9 @@ freq_panel <- ggplot(
 ```
 
 ```{r diff panel}
-diff_panel <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
+diff_data <- dplyr::filter(pivot_data, optimization == "cont")
+
+diff_panel <- ggplot(diff_data, aes(x = COI - rmcl_med, fill = coi_method)) +
   geom_density(alpha = 0.6) +
   labs(x = "COI - Median RMCL", y = "Density", fill = "COI Method") +
   scale_fill_manual(
@@ -148,7 +150,7 @@ diff_panel <- ggplot(pivot_data, aes(x = COI - rmcl_med, fill = coi_method)) +
 
 ```{r combine panels}
 # Use patchwork to combine plots
-patchwork <- (var_panel / freq_panel) | diff_panel
+patchwork <- (var_panel + freq_panel) / diff_panel
 patchwork +
   plot_annotation(tag_levels = "A") +
   plot_layout(guides = "collect") &
