@@ -31,14 +31,15 @@ al.*.
     │   ├── estimation-comparison.Rmd
     │   └── pf6_analysis.Rmd
     ├── data-outputs
+    │   ├── core-genome.rds
     │   ├── data_dims.rds
     │   ├── regional.rds
     │   └── rmcl_estimation.rds
     ├── download
     │   ├── 00_Pf6_vcf_filtering.Rmd
     │   ├── 01_create_coiaf_inputs.Rmd
-    │   ├── 02_Pf6_rmcl_vcf_filtering.Rmd
-    │   └── 03_rmcl_results.Rmd
+    │   ├── 02_run_rmcl.Rmd
+    │   └── core-genome.tsv
     ├── metadata
     │   ├── pf6_meta.Rmd
     │   └── pf6_meta.rds
