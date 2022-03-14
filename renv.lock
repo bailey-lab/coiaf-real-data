@@ -474,8 +474,8 @@
       "RemoteUsername": "bailey-lab",
       "RemoteRepo": "coiaf",
       "RemoteRef": "main",
-      "RemoteSha": "ffad29eb1d0506478dd36878f1f19cf7c3bdca8c",
-      "Hash": "971590ffacbc6d45f3558036ee881517",
+      "RemoteSha": "f79684eb03f74b0736da7bf3b51d955bd58ac654",
+      "Hash": "6385dff96ffdfe682fc956225673a846",
       "Requirements": [
         "Hmisc",
         "boot",
