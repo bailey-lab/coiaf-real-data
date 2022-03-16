@@ -74,7 +74,7 @@ ld_filter <- function(vcfRobj_rds, genauto_rds, threshR2 = 0.8, random = TRUE) {
 pars <- data.frame(
   "vcfRobj_rds" = vcf_rds,
   "genauto_rds" = gen_rds,
-  "threshR2" = rep(0.8, 10),
+  "threshR2" = rep(0.8, 5),
   "random" = TRUE,
   stringsAsFactors = FALSE
 )
@@ -89,7 +89,7 @@ sopt <- list(time = "4:00:00", mem = "32Gb")
 sjob <- rslurm::slurm_apply(ld_filter,
   pars,
   jobname = "ld_filter",
-  nodes = 10,
+  nodes = nrow(pars),
   global_objects = "ld_filter",
   cpus_per_node = 1,
   slurm_options = sopt,
@@ -221,7 +221,7 @@ for (i in seq_along(obj_list)) {
 ```{r slurm run rmcl}
 # Use slurm
 setwd(slurm_dir)
-sopt <- list(time = "48:00:00", mem = "20Gb")
+sopt <- list(time = "12:00:00", mem = "20Gb")
 
 # Submit jobs
 sjob <- rslurm::slurm_apply(

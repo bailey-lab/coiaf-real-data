@@ -4,10 +4,10 @@ library(coiaf)
 here::i_am("scripts/rmcl-estimation.R")
 
 # Path to data
-path <- "~/Desktop/Malaria/COI data/"
+path <- "~/Desktop/Malaria/COI data/core-genome/"
 
 # Read in the REAL McCOIL COI predictions
-rmcl_coi_out <- readRDS(paste0(path, "RMCL_coi_out.rds")) %>%
+rmcl_coi_out <- readRDS(paste0(path, "rmcl_raw_coi.rds")) %>%
   tibble::as_tibble() %>%
   dplyr::mutate(dplyr::across(c(file, name), as.character)) %>%
   dplyr::rename(rmcl = COI, rmcl_025 = COI_025, rmcl_975 = COI_975) %>%
@@ -28,7 +28,7 @@ rmcl_summarize_runs <- rmcl_coi_out %>%
     .groups = "drop_last"
   )
 
-# Summarize over the 10 vcfs for each region
+# Summarize over the 5 vcfs for each region
 rmcl_region <- dplyr::summarise(
   rmcl_summarize_runs,
   rmcl_med = median(rmcl_med),
