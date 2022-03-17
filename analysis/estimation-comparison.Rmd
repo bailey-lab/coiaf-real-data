@@ -37,7 +37,7 @@ rmcl_predictions <- readRDS(here::here(
 ```{r base regional}
 regional <- readRDS(here::here(
   "data-outputs", 
-  "regional.rds"
+  "core-genome.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) 
 ```
@@ -186,24 +186,26 @@ First find samples where the Frequency Method is undefined.
 
 ```{r high coi samples}
 undefined_samples <- regional %>%
-  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), rmcl_med >= 3)
+  dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), rmcl_med == 1)
 ```
 
 Plot the sample
 
 ```{r plot the sample}
+library(magrittr)
 path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 plots_per_figure <- 6
 
-purrr::walk(seq_len(10 * 6), function(i) {
+purrr::walk(seq_len(3 * 6), function(i) {
   # Assign six plots per figure
   if (i %% plots_per_figure == 1) {
-    pdf(paste0("analysis/comparison-figures/undefined_samples_", i, ".pdf"))
+    pdf(paste0("analysis/comparison-figures/coi_3_", i, ".pdf"))
     par(mfrow = c(3, 2))
   }
 
   # Determine sample details
-  sample_details <- dplyr::slice(undefined_samples, i)
+  # sample_details <- dplyr::slice(undefined_samples, i)
+  sample_details <- dplyr::slice_sample(undefined_samples, n = 1)
 
   # Isolate matrices
   region_matrix <- readRDS(paste0(
@@ -231,12 +233,12 @@ purrr::walk(seq_len(10 * 6), function(i) {
     minor$plmaf, 
     minor$wsmaf, 
     main = sample_details %$% paste0(
-      "S:", name,
-      "; V: ", cont_var, 
+      "Sample: ", name,
+      "\nV: ", cont_var,
       "; F: ", cont_freq_estimate,
       "; R: ", rmcl_med,
       "; H: ", round(num_variant_loci / expected_num_loci, 2),
-      ": C: ", round(mean(coverage, na.rm = TRUE), 2)
+      "; C: ", round(mean(coverage, na.rm = TRUE), 2)
     ),
     xlab = "PLMAF",
     ylab = "WSMAF",
@@ -244,16 +246,47 @@ purrr::walk(seq_len(10 * 6), function(i) {
     cex = 1, 
     col = "black"
   )
-
+  
+  lines(lowess(minor$plmaf, minor$wsmaf), col = "blue", lwd = 2)
+  
   # Stop writing to pdf file after 6 plots or after there are no more samples
   if (i %% plots_per_figure == 0 | i == nrow(undefined_samples)) dev.off()
 })
 ```
 
+## Studying the PLMAF
+
+```{r determine PLMAF per region}
+path <- "~/Desktop/Malaria/COI data/core-genome/"
+
+region_plmaf <- purrr::map(
+  cli::cli_progress_along(seq_len(24), "Finding PLMAF"), 
+  function(i) {
+    wsaf_matrix <- readRDS(paste0(
+      path, 
+      glue::glue("wsaf_reg_{ i }.rds")
+    ))$wsaf
+    
+    plaf <- colMeans(wsaf_matrix, na.rm = TRUE)
+    ifelse(plaf > 0.5, 1 - plaf, plaf)
+})
+
+plot_list <- purrr::map(seq_len(24), function(i) {
+  region_plmaf[[i]] %>% 
+    tibble::as_tibble() %>% 
+    ggplot(aes(x = value)) +
+    geom_density() + 
+    theme_coiaf()
+})
+
+patchwork::wrap_plots(plot_list)
+```
+
+
 ## Studying the coverage
 
 ```{r determine mean coverage per sample}
-path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
+path <- "~/Desktop/Malaria/COI data/core-genome/"
 
 sample_coverage <- purrr::map(
   cli::cli_progress_along(seq_len(24), "Finding coverage"), 
