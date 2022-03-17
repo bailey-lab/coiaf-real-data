@@ -14,8 +14,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-# Change the way tibble prints so only prints 5 extra columns
-options(tibble.max_extra_cols = 5)
 
 library(coiaf)
 library(ggplot2)
@@ -36,7 +34,7 @@ rmcl_predictions <- readRDS(here::here(
 
 complete_predictions <- readRDS(here::here(
   "data-outputs", 
-  "regional.rds"
+  "core-genome.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 ```
@@ -170,9 +168,6 @@ corrr <- wide_data %>%
   corrr::correlate()
 
 corrr::focus(corrr, rmcl_med)
-
-corrr::rplot(corrr)
-corrr::network_plot(corrr)
 ```
 
 ```{r linear regression}
@@ -471,9 +466,9 @@ ridges <- ggplot(
   scale_fill_viridis_d() +
   annotate(
     "text",
-    x = 7.25,
+    x = 7.35,
     y = seq_len(length(sorted_prev)) + 0.35,
-    label = round(sorted_prev, 2),
+    label = round(sorted_prev, 3),
     size = 2.5
   ) +
   labs(x = "COI", y = "Region")
@@ -482,18 +477,38 @@ ridges <- ggplot(
 Combining our world map plots and our prevalence plot, we can generate an
 informative picture of COI in the world.
 
-```{r another figure, message = FALSE, warning = FALSE}
+```{r coi around the world, message = FALSE, warning = FALSE}
 mean_world / med_world / ridges +
   plot_annotation(tag_levels = "A") +
   plot_layout(widths = c(2, 2, 1), heights = c(1, 1, 2))
 ```
 
-### Prevalence
+We also can generate some stats to examine the relationship between prevalence
+and the COI.
+
+```{r prev in each region}
+patient_lat_long %>%
+  dplyr::group_by(Continent) %>% 
+  dplyr::summarise(
+    median = median(prev_2_10, na.rm = TRUE),
+    coi = mean(dis_var, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+pvalue_subregion <- PMCMRplus::kwAllPairsNemenyiTest(
+  prev_2_10 ~ as.factor(Continent), 
+  data = patient_lat_long
+)$p.value
+
+purrr::map_df(tibble::as_tibble(pvalue_subregion), ~ round(.x, digits = 5)) %>% 
+  tibble::add_column(Subregion = rownames(pvalue_subregion), .before = 1)
+```
 
 ```{r prev correlation}
 patient_lat_long %>%
-  dplyr::select(dis_var, cont_var, dis_freq, cont_freq, prev_2_10) %>%
-  corrr::correlate()
+  dplyr::select(dis_var, cont_var, dis_freq, cont_freq, rmcl_med, prev_2_10) %>%
+  corrr::correlate() %>% 
+  corrr::focus(prev_2_10)
 ```
 
 ```{r prev lm}
@@ -509,4 +524,22 @@ regressions <- global_prev %>%
 
 tidyr::unnest(regressions, tidied)
 tidyr::unnest(regressions, glanced)
+```
+
+```{r coi with varying prev thresholds}
+prev_leq <- patient_lat_long %>% 
+  dplyr::filter(prev_2_10 <= 0.01) %>% 
+  dplyr::pull(dis_var) %>% 
+  table() %>% 
+  prop.table() %>% 
+  round(3)
+sum(prev_leq[1:2]) * 100
+
+prev_geq <- patient_lat_long %>% 
+  dplyr::filter(prev_2_10 >= 0.1) %>% 
+  dplyr::pull(dis_var) %>% 
+  table() %>% 
+  prop.table() %>% 
+  round(3)
+(1 - sum(prev_geq[1:2])) * 100
 ```
