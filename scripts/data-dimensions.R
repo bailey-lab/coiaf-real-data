@@ -9,7 +9,7 @@ data_dims <- purrr::map_dfr(
   cli::cli_progress_along(1:24, "Counting number of samples and loci"),
   function(i) {
     data_file <- glue::glue("wsaf_reg_{ i }.rds")
-    wsaf_matrix <- readRDS(paste0(path, data_file))$wsaf_cleaned
+    wsaf_matrix <- readRDS(paste0(path, data_file))$wsaf
     dims <- dim(wsaf_matrix)
     names(dims) <- c("samples", "loci")
     c(region = i, dims)
