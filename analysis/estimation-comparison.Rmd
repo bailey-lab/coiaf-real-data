@@ -43,54 +43,39 @@ core <- readRDS(here::here(
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region")) 
 ```
 
-```{r regional binned estimations}
-bin_100_seq_0 <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "bin_100_seq_0.rds"
+```{r different seq error}
+seq_0.01 <- readRDS(here::here(
+  "data-outputs",
+  "seq-error",
+  "seq_0.01.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
-bin_100_seq_0.01 <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "bin_100_seq_0.01.rds"
+seq_0.05 <- readRDS(here::here(
+  "data-outputs",
+  "seq-error",
+  "seq_0.05.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
-bin_100_seq_imputed <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "bin_100_seq_imputed.rds"
-)) %>% 
-  dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
-```
-
-```{r regional regression estimations}
-regression_seq_0 <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "regression_seq_0.rds"
+seq_0.1 <- readRDS(here::here(
+  "data-outputs",
+  "seq-error",
+  "seq_0.1.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
-regression_seq_0.01 <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "regression_seq_0.01.rds"
+seq_0.15 <- readRDS(here::here(
+  "data-outputs",
+  "seq-error",
+  "seq_0.15.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
-regression_seq_imputed <- readRDS(here::here(
-  "archive",
-  "non-core-genome",
-  "vary-seq-error",
-  "regression_seq_imputed.rds"
+seq_0.2 <- readRDS(here::here(
+  "data-outputs",
+  "seq-error",
+  "seq_0.2.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 ```
@@ -98,13 +83,12 @@ regression_seq_imputed <- readRDS(here::here(
 ```{r bind data }
 bind_data <- dplyr::bind_rows(
   list(
-    core = core,
-    bin_100_seq_0 = bin_100_seq_0,
-    bin_100_seq_0.01 = bin_100_seq_0.01,
-    bin_100_seq_imputed = bin_100_seq_imputed,
-    regression_seq_0 = regression_seq_0,
-    regression_seq_0.01 = regression_seq_0.01,
-    regression_seq_imputed = regression_seq_imputed
+    seq_0 = core,
+    seq_0.01 = seq_0.01,
+    seq_0.05 = seq_0.05,
+    seq_0.1 = seq_0.1,
+    seq_0.15 = seq_0.15,
+    seq_0.2 = seq_0.2
   ), 
   .id = "dataset"
 )
@@ -181,6 +165,35 @@ method_comparison(bind_data)
 
 ```{r data sets rmcl}
 rmcl_comparison(bind_data)
+```
+
+In order to better visualize the differences between the estimated COI with
+differing sequence error, we create one plot examining the discrete Variant
+Method.
+
+```{r dvm single plot}
+bind_data %>% 
+  dplyr::filter(rmcl_med != 25) %>% 
+  dplyr::mutate(
+    dataset = forcats::as_factor(dataset),
+    dataset = forcats::fct_relabel(dataset, function(x) {
+      paste("Sequencing Error:", stringr::str_extract_all(x, "(?<=seq_).*"))
+    })
+  ) %>% 
+  ggplot(aes(x = rmcl_med, y = dis_var, color = dataset)) +
+  facet_wrap(~dataset) +
+  geom_abline(color = "gray", size = 0.5) +
+  geom_jitter(alpha = 0.5) +
+  theme_coiaf() +
+  guides(size = "none", color = "none") +
+  scale_x_continuous(
+    expression(italic("THE REAL McCOIL")~"Prediction"), 
+    breaks = seq(0, 10)
+  ) +
+  scale_y_continuous(
+    expression(italic("coiaf")~"Prediction"), 
+    breaks = seq(0, 10)
+  )
 ```
 
 ## When is the Frequency Method undefined?
