@@ -329,8 +329,11 @@ purrr::map_df(tibble::as_tibble(pvalue_continent), ~ round(.x, digits = 5)) %>%
 patient_lat_long %>%
   dplyr::group_by(Continent, Subregion) %>% 
   dplyr::summarise(
-    mean = mean(dis_var, na.rm = TRUE), 
+    mean = mean(dis_var, na.rm = TRUE),
+    sd = sd(dis_var, na.rm = TRUE),
     median = median(dis_var, na.rm = TRUE),
+    iqr = IQR(dis_var, na.rm = TRUE),
+    n = dplyr::n(),
     .groups = "drop"
   )
 
