@@ -247,6 +247,51 @@ patient_lat_long %>%
 
 We can then generate several world maps with our data!
 
+```{r custom map plot}
+# Plot the mean COI
+world_map <- function(data,
+                      variable,
+                      label = NULL,
+                      alpha = 0.1,
+                      breaks = c(1, 2)) {
+
+  # Access world map data from ggplot2
+  world <- ggplot2::map_data("world")
+
+  # Plot world map
+  ggplot2::ggplot() +
+    ggplot2::borders("world") +
+    ggplot2::geom_polygon(
+      data = world,
+      ggplot2::aes(x = .data$long, y = .data$lat, group = .data$group),
+      fill = "grey",
+      alpha = 0.5
+    ) +
+    ggplot2::geom_point(
+      data = data,
+      ggplot2::aes(
+        x = .data$long,
+        y = .data$lat,
+        size = 1,
+        color = {{ variable }}
+      ),
+      alpha = alpha
+    ) +
+    ggplot2::scale_color_distiller(
+      palette = "YlGnBu", 
+      direction = 1,
+      limits = c(breaks[1], breaks[length(breaks)]),
+      breaks = breaks
+    ) +
+    ggplot2::theme_void() +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::scale_size(guide = "none") +
+    ggplot2::labs(color = label) +
+    ggplot2::coord_quickmap(xlim = c(-75, 150), ylim = c(-30, 30))
+}
+```
+
+
 ```{r world map, warning = FALSE, fig.height = 2}
 # Get average of data
 map_average <- patient_lat_long %>%
@@ -457,7 +502,14 @@ continents <- global_prev %>%
   dplyr::filter(med_prev != 0) %>%
   dplyr::arrange(prev_2_10) %>%
   dplyr::ungroup() %>%
-  dplyr::mutate(Region = forcats::as_factor(Region))
+  dplyr::mutate(
+    Region = forcats::as_factor(Region),
+    Subregion = forcats::as_factor(Subregion),
+    Subregion = forcats::fct_relevel(
+      Subregion, "Western Africa", "Middle Africa", "Eastern Africa", 
+      "South America", "Melanesia", "South-Eastern Asia", "Southern Asia"
+    )
+  )
 
 sorted_prev <- continents %>%
   dplyr::select(Region, med_prev) %>%
@@ -472,13 +524,15 @@ ridges <- ggplot(
   ggridges::geom_density_ridges() +
   ggridges::theme_ridges() +
   theme_coiaf() +
-  scale_fill_viridis_d() +
+  scale_fill_manual(
+    values = c("#31a354", "#a1d99b", "#e5f5e0", "#756bb1", "#fdbe85", "#9ecae1", "#deebf7")
+  ) +
   annotate(
     "text",
     x = 7.35,
-    y = seq_len(length(sorted_prev)) + 0.35,
+    y = seq_len(length(sorted_prev)) + 0.4,
     label = round(sorted_prev, 3),
-    size = 2.5
+    size = 2.2
   ) +
   labs(x = "COI", y = "Region")
 ```
