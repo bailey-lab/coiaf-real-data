@@ -89,7 +89,7 @@ var_panel <- ggplot(
   theme_coiaf() +
   labs(
     title = "Variant Method",
-    y = "coiaf Prediction",
+    y = expression(italic("coiaf")~"Estimation"),
     color = "Optimization Method"
   ) +
   scale_color_manual(
@@ -97,7 +97,10 @@ var_panel <- ggplot(
     values = c("#00239CFF", "#E10600FF")
   ) +
   guides(size = "none") +
-  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+    scale_x_continuous(
+    expression(italic("THE REAL McCOIL")~"Estimation"), 
+    breaks = seq(0, 10)
+  )
 ```
 
 ```{r freq panel}
@@ -121,7 +124,7 @@ freq_panel <- ggplot(
   theme_coiaf() +
   labs(
     title = "Frequency Method",
-    y = "coiaf Prediction",
+    y = expression(italic("coiaf")~"Estimation"),
     color = "Optimization Method"
   ) +
   scale_color_manual(
@@ -129,7 +132,10 @@ freq_panel <- ggplot(
     values = c("#00239CFF", "#E10600FF")
   ) +
   guides(size = "none") +
-  scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10))
+  scale_x_continuous(
+    expression(italic("THE REAL McCOIL")~"Estimation"), 
+    breaks = seq(0, 10)
+  )
 ```
 
 ```{r diff panel}
@@ -137,7 +143,7 @@ diff_data <- dplyr::filter(pivot_data, optimization == "cont")
 
 diff_panel <- ggplot(diff_data, aes(x = COI - rmcl_med, fill = coi_method)) +
   geom_density(alpha = 0.6) +
-  labs(x = "COI - Median RMCL", y = "Density", fill = "COI Method") +
+  labs(x = "Difference in Estimation", y = "Density", fill = "COI Method") +
   scale_fill_manual(
     labels = c("Variant", "Frequency"),
     values = c("#4B878BFF", "#D01C1FFF")
