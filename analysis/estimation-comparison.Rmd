@@ -18,6 +18,7 @@ knitr::opts_chunk$set(
 library(coiaf)
 library(ggplot2)
 library(patchwork)
+library(magrittr)
 ```
 
 This analysis file will be used to compare the different estimation strategies
@@ -34,8 +35,8 @@ rmcl_predictions <- readRDS(here::here(
 ))
 ```
 
-```{r base regional}
-regional <- readRDS(here::here(
+```{r core genome}
+core <- readRDS(here::here(
   "data-outputs", 
   "core-genome.rds"
 )) %>% 
@@ -44,21 +45,24 @@ regional <- readRDS(here::here(
 
 ```{r regional binned estimations}
 bin_100_seq_0 <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "bin_100_seq_0.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
 bin_100_seq_0.01 <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "bin_100_seq_0.01.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
 bin_100_seq_imputed <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "bin_100_seq_imputed.rds"
 )) %>% 
@@ -67,21 +71,24 @@ bin_100_seq_imputed <- readRDS(here::here(
 
 ```{r regional regression estimations}
 regression_seq_0 <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "regression_seq_0.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
 regression_seq_0.01 <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "regression_seq_0.01.rds"
 )) %>% 
   dplyr::left_join(rmcl_predictions, by = c("name", "Region" = "region"))
 
 regression_seq_imputed <- readRDS(here::here(
-  "data-outputs",
+  "archive",
+  "non-core-genome",
   "vary-seq-error",
   "regression_seq_imputed.rds"
 )) %>% 
@@ -91,7 +98,7 @@ regression_seq_imputed <- readRDS(here::here(
 ```{r bind data }
 bind_data <- dplyr::bind_rows(
   list(
-    regional = regional,
+    core = core,
     bin_100_seq_0 = bin_100_seq_0,
     bin_100_seq_0.01 = bin_100_seq_0.01,
     bin_100_seq_imputed = bin_100_seq_imputed,
@@ -185,14 +192,13 @@ for the Frequency Method.
 First find samples where the Frequency Method is undefined.
 
 ```{r high coi samples}
-undefined_samples <- regional %>%
+undefined_samples <- core %>%
   dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), rmcl_med == 1)
 ```
 
 Plot the sample
 
-```{r plot the sample}
-library(magrittr)
+```{r plot the sample, eval = FALSE}
 path <- "~/Desktop/Malaria/COI data/wsafs-coverage/"
 plots_per_figure <- 6
 
@@ -304,7 +310,7 @@ mean(sample_coverage, na.rm = TRUE)
 sample_coverage %>%
   tibble::as_tibble(rownames = "name") %>%
   dplyr::rename(coverage = value) %>% 
-  dplyr::right_join(regional) %>% 
+  dplyr::right_join(core) %>% 
   dplyr::group_by(Region) %>% 
   dplyr::summarise(mean_coverage = mean(coverage))
 ```
@@ -318,7 +324,7 @@ coverage <- purrr::map(
       glue::glue("wsaf_reg_{ i }.rds")
     ))$coverage
   
-    data_region <- dplyr::filter(regional, Region == i)
+    data_region <- dplyr::filter(core, Region == i)
     
     purrr::map_dbl(seq_len(nrow(data_region)), function(j) {
       sample_details <- dplyr::slice(data_region, j)
@@ -327,7 +333,7 @@ coverage <- purrr::map(
     })
 })
 
-cov_analysis <- regional %>%
+cov_analysis <- core %>%
   tibble::add_column(coverage = unlist(coverage))
 
 cov_analysis %>%
@@ -342,7 +348,7 @@ cov_analysis %$%
 ## Studying the number of heterozygous sites
 
 ```{r}
-het_2pq <- regional %>%
+het_2pq <- core %>%
   dplyr::filter(is.nan(dis_freq), is.nan(cont_freq), cont_freq_estimate <= 20) %>%
   dplyr::mutate(het_over_2pq = num_variant_loci / expected_num_loci)
 
