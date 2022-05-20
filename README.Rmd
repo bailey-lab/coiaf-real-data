@@ -36,7 +36,7 @@ the supplementary of MalariaGEN *et al.*.
 
 ```{r proj structure, echo = FALSE}
 fs::dir_tree(
-  regexp = "renv.*|library|.*figures|archive|.*Rproj|.*E.R?md|.*html|data-outputs/vary-seq-error/*|references", 
+  regexp = "renv.*|library|.*-figures|archive|.*Rproj|.*E.R?md|.*html|data-outputs/vary-seq-error/*|references", 
   invert = TRUE
 )
 ```

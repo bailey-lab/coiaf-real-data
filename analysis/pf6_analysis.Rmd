@@ -158,7 +158,17 @@ patchwork <- (var_panel + freq_panel) / diff_panel
 patchwork +
   plot_annotation(tag_levels = "A") +
   plot_layout(guides = "collect") &
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom", plot.tag = element_text(face = "bold"))
+
+# Save figure
+ggsave(
+  here::here("figures", "comparison.png"), 
+  device = "png", 
+  width = 2000, 
+  height = 1800,
+  units = "px", 
+  dpi = "print"
+)
 ```
 
 ```{r correlation}
@@ -205,6 +215,16 @@ ggplot(
   theme_coiaf() +
   guides(size = "none")
 
+# Save figure
+ggsave(
+  here::here("figures", "discrete-region.png"), 
+  device = "png", 
+  width = 2000, 
+  height = 2000,
+  units = "px", 
+  dpi = "print"
+)
+
 # Only continuous
 ggplot(
   data = dplyr::filter(pivot_data, optimization == "cont"),
@@ -222,6 +242,16 @@ ggplot(
   ) +
   theme_coiaf() +
   guides(size = "none")
+
+# Save figure
+ggsave(
+  here::here("figures", "continuous-region.png"), 
+  device = "png", 
+  width = 2000, 
+  height = 2000,
+  units = "px", 
+  dpi = "print"
+)
 ```
 
 ## World maps
@@ -434,6 +464,16 @@ ggplot(data = prev_fws, aes(x = Fws, y = COI, color = Method)) +
   guides(color = "none") +
   theme_coiaf()
 
+# Save figure
+ggsave(
+  here::here("figures", "fws.png"), 
+  device = "png", 
+  width = 2250, 
+  height = 2625,
+  units = "px", 
+  dpi = "print"
+)
+
 # Correlation
 coiaf_fws <- dplyr::filter(prev_fws, Method == "Discrete \n Variant Method")
 cor.test(coiaf_fws$Fws, coiaf_fws$COI)
@@ -458,6 +498,16 @@ ggplot(data = prev_fws, aes(x = prev_2_10, y = COI, color = Method)) +
   guides(color = "none") +
   theme_coiaf()
 
+# Save figure
+ggsave(
+  here::here("figures", "log-prevalence.png"), 
+  device = "png", 
+  width = 2250, 
+  height = 2625,
+  units = "px", 
+  dpi = "print"
+)
+
 ggplot(
   data = prev_fws, 
   aes(
@@ -470,6 +520,16 @@ ggplot(
   labs(x = "Prevalence", y = "Estimated COI") +
   guides(color = "none") +
   theme_coiaf()
+
+# Save figure
+ggsave(
+  here::here("figures", "grouped-prevalence.png"), 
+  device = "png", 
+  width = 2250, 
+  height = 2625,
+  units = "px", 
+  dpi = "print"
+)
 ```
 
 We could also look at the prevalence of mutations slightly differently and
@@ -542,8 +602,18 @@ informative picture of COI in the world.
 
 ```{r coi around the world, message = FALSE, warning = FALSE}
 mean_world / med_world / ridges +
-  plot_annotation(tag_levels = "A") +
-  plot_layout(widths = c(2, 2, 1), heights = c(1, 1, 1.5))
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(face = "bold"))
+
+# Save figure
+ggsave(
+  here::here("figures", "coi-world.png"), 
+  device = "png", 
+  width = 2200, 
+  height = 1800,
+  units = "px", 
+  dpi = "print"
+)
 ```
 
 We also can generate some stats to examine the relationship between prevalence

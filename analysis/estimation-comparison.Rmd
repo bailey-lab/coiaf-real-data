@@ -144,8 +144,8 @@ rmcl_helper <- function(data, col) {
       legend.position = "right"
     ) +
     guides(size = "none") +
-    scale_x_continuous("THE REAL McCOIL Prediction", breaks = seq(0, 10)) +
-    labs(title = title, y = "coiaf Prediction", color = "Dataset")
+    scale_x_continuous("THE REAL McCOIL Estimation", breaks = seq(0, 10)) +
+    labs(title = title, y = "coiaf Estimation", color = "Dataset")
 }
 
 rmcl_comparison <- function(data) {
@@ -187,13 +187,23 @@ bind_data %>%
   theme_coiaf() +
   guides(size = "none", color = "none") +
   scale_x_continuous(
-    expression(italic("THE REAL McCOIL")~"Prediction"), 
+    expression(italic("THE REAL McCOIL")~"Estimation"), 
     breaks = seq(0, 10)
   ) +
   scale_y_continuous(
-    expression(italic("coiaf")~"Prediction"), 
+    expression(italic("coiaf")~"Estimation"), 
     breaks = seq(0, 10)
   )
+
+# Save figure
+ggsave(
+  here::here("figures", "varying-seq-error.png"),
+  device = "png", 
+  width = 2000, 
+  height = 2000,
+  units = "px", 
+  dpi = "print"
+)
 ```
 
 ## When is the Frequency Method undefined?
