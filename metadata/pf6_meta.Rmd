@@ -133,7 +133,7 @@ ggsave(
 ```
 
 We may also be interested in the prevalence of malaria in various regions and
-the FwS metric.
+the FwS metric. We extract the prevalence data from malaria atlas.
 
 ```{r prevalence data, message = FALSE, warning = FALSE}
 # Get the lat longs
@@ -162,15 +162,29 @@ for (i in seq_along(sort(unique(meta$Year)))) {
 meta
 ```
 
+And extract the FwS data from the Pf6 datasets.
+
 ```{r fws data}
 fws <- read.csv("ftp://ngs.sanger.ac.uk/production/malaria/pfcommunityproject/Pf6/Pf_6_fws.txt", sep = "\t")
 fws
 ```
 
+Additionally, we may be interested in the effective K metric defined in the
+manuscript accompanying the DEploidIBD software. We download the data from 
+[GitHub](https://github.com/mcveanlab/mixedIBD-Supplement/blob/master/compiled_data_corrected.Rdata)
+and read it in.
+
+```{r effective K}
+deploid <- get(load(here::here("metadata", "deploidibd_data.rdata")))
+deploid_eff_k <- dplyr::select(deploid, ID, eff_k)
+```
+
 Finally, we can combine all our metadata together and save.
 
 ```{r final metadata}
-combine_meta <- dplyr::left_join(meta, fws, by = "Sample")
+combine_meta <- meta %>% 
+  dplyr::left_join(fws, by = "Sample") %>% 
+  dplyr::left_join(deploid_eff_k, by = c("Sample" = "ID"))
 
 saveRDS(combine_meta, here::here("metadata", "pf6_meta.rds"))
 ```

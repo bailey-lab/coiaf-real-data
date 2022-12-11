@@ -428,13 +428,13 @@ purrr::map_df(tibble::as_tibble(pvalue_subregion), ~ round(.x, digits = 5)) %>%
 ```
 
 
-## Prevalence & FwS
+## Prevalence, FwS, DEploidIBD
 
-We can also look at the relationship between our COI estimations and the FwS
-metric as well as the prevalence of mutations.
+We can also look at the relationship between our COI estimations and other COI
+metrics as well as the prevalence of mutations.
 
-```{r prev fws data}
-prev_fws <- patient_lat_long %>%
+```{r prev fws deploid data}
+metrics_data <- patient_lat_long %>%
   dplyr::filter(rmcl_med != 25 & !is.na(rmcl_med)) %>%
   tidyr::pivot_longer(
     cols = c("dis_var", "cont_var", "dis_freq", "cont_freq", "rmcl_med"),
@@ -457,7 +457,7 @@ prev_fws <- patient_lat_long %>%
 ### FwS
 
 ```{r fws}
-ggplot(data = prev_fws, aes(x = Fws, y = COI, color = Method)) +
+ggplot(data = metrics_data, aes(x = Fws, y = COI, color = Method)) +
   geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
   labs(x = "FwS", y = "Estimated COI") +
   facet_grid(~Method) +
@@ -475,17 +475,48 @@ ggsave(
 )
 
 # Correlation
-coiaf_fws <- dplyr::filter(prev_fws, Method == "Discrete \n Variant Method")
+coiaf_fws <- dplyr::filter(metrics_data, Method == "Discrete \n Variant Method")
 cor.test(coiaf_fws$Fws, coiaf_fws$COI)
 
-rmcl_fws <- dplyr::filter(prev_fws, Method == "THE REAL McCOIL")
+rmcl_fws <- dplyr::filter(metrics_data, Method == "THE REAL McCOIL")
 cor.test(rmcl_fws$Fws, rmcl_fws$COI)
+```
+
+### DEploidIBD
+
+```{r deploid}
+ggplot(data = metrics_data, aes(x = eff_k, y = COI, color = Method)) +
+  geom_point(alpha = 0.3, position = position_jitter(height = 0.2)) +
+  labs(x = "DEploidIBD Effective K", y = "Estimated COI") +
+  facet_grid(~Method) +
+  guides(color = "none") +
+  theme_coiaf()
+
+# Save figure
+ggsave(
+  here::here("figures", "deploid.png"), 
+  device = "png", 
+  width = 2250, 
+  height = 2625,
+  units = "px", 
+  dpi = "print"
+)
+
+# Correlation
+coiaf_deploid <- dplyr::filter(
+  metrics_data, 
+  Method == "Discrete \n Variant Method"
+)
+cor.test(coiaf_deploid$eff_k, coiaf_deploid$COI)
+
+rmcl_deploid <- dplyr::filter(metrics_data, Method == "THE REAL McCOIL")
+cor.test(rmcl_deploid$eff_k, rmcl_deploid$COI)
 ```
 
 ### Prevalence
 
 ```{r prev, warning = FALSE}
-ggplot(data = prev_fws, aes(x = prev_2_10, y = COI, color = Method)) +
+ggplot(data = metrics_data, aes(x = prev_2_10, y = COI, color = Method)) +
   geom_point(alpha = 0.2, position = position_jitter(height = 0.2)) +
   geom_smooth(method = "lm", formula = y ~ x) +
   scale_x_log10(
@@ -509,7 +540,7 @@ ggsave(
 )
 
 ggplot(
-  data = prev_fws, 
+  data = metrics_data, 
   aes(
     x = cut(prev_2_10, seq(0, 1, 0.1), right = TRUE),
     y = COI, color = Method
