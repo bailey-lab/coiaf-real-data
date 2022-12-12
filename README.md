@@ -1,3 +1,4 @@
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # Real Data Analysis With coiaf
@@ -8,7 +9,6 @@
 [![Requirement](https://img.shields.io/badge/requirement-coiaf-green)](https://github.com/bailey-lab/coiaf)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 <!-- badges: end -->
 
 This repository stores the real data analysis conducted to test the
@@ -16,14 +16,14 @@ software package [{coiaf}](https://github.com/bailey-lab/coiaf).
 
 ## Data Source
 
-We analysed samples from the MalariaGEN _Plasmodium falciparum_
-Community Project \[1\]. The MalariaGEN _Plasmodium falciparum_
-Community Project provides genomic data from over 7,000 _P. falciparum_
+We analysed samples from the MalariaGEN *Plasmodium falciparum*
+Community Project \[1\]. The MalariaGEN *Plasmodium falciparum*
+Community Project provides genomic data from over 7,000 *P. falciparum*
 samples from 28 malaria-endemic countries in Africa, Asia, South
 America, and Oceania from 2002-2015. Detailed information about the data
 release including brief descriptions of contributing partner studies and
-study locations is available in the supplementary of MalariaGEN _et
-al._.
+study locations is available in the supplementary of MalariaGEN *et
+al.*.
 
 ## Project Structure
 
@@ -51,6 +51,7 @@ al._.
     │   ├── coi-world.png
     │   ├── comparison.png
     │   ├── continuous-region.png
+    │   ├── deploid.png
     │   ├── discrete-region.png
     │   ├── fws.png
     │   ├── grouped-prevalence.png
@@ -58,6 +59,7 @@ al._.
     │   ├── silhoutte.png
     │   └── varying-seq-error.png
     ├── metadata
+    │   ├── deploidibd_data.rdata
     │   ├── pf6_meta.Rmd
     │   └── pf6_meta.rds
     ├── raw-regions
